@@ -1,0 +1,5 @@
+.gitnexus
+.idea/
+go.sum
+logs/
+*.log

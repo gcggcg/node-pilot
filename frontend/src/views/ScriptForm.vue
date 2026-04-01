@@ -52,10 +52,41 @@
                         @change="onFileSelect"
                         style="display: none"
                     />
-                    <div class="upload-placeholder" @click="triggerFileSelect">
+                    
+                    <!-- 空闲/错误状态：显示上传入口 -->
+                    <div v-if="uploadStatus === 'idle' || uploadStatus === 'error'" 
+                         class="upload-placeholder" 
+                         @click="triggerFileSelect">
                         <span class="upload-icon">📁</span>
                         <p>拖拽文件到此处，或 <span class="link">点击选择</span></p>
                         <p class="hint">支持 .txt, .sh, .py, .js, .sql 文件，不超过 5MB</p>
+                    </div>
+                    
+                    <!-- 上传中状态 -->
+                    <div v-if="uploadStatus === 'uploading'" class="upload-progress">
+                        <div class="spinner"></div>
+                        <p>正在读取文件...</p>
+                    </div>
+                    
+                    <!-- 成功状态 -->
+                    <div v-if="uploadStatus === 'success'" class="upload-success">
+                        <div class="success-header">
+                            <span class="success-icon">✓</span>
+                            <span>文件读取成功</span>
+                        </div>
+                        <p class="file-name">{{ selectedFileName }}</p>
+                        <button type="button" class="btn-reupload" @click="triggerFileSelect">
+                            重新上传
+                        </button>
+                    </div>
+                    
+                    <!-- 错误提示 -->
+                    <div v-if="uploadError" class="upload-error">
+                        <span class="error-icon">⚠</span>
+                        <span>{{ uploadError }}</span>
+                        <button type="button" class="btn-retry" @click="resetUpload">
+                            重新上传
+                        </button>
                     </div>
                 </div>
 
@@ -107,6 +138,8 @@ const isUploading = ref(false);
 const uploadError = ref<string | null>(null);
 const manualContent = ref(form.value.content);
 const uploadedContent = ref('');
+const uploadStatus = ref<'idle' | 'uploading' | 'success' | 'error'>('idle');
+const selectedFileName = ref<string>('');
 
 // 切换模式时同步内容
 watch(inputMode, (newMode, oldMode) => {
@@ -118,6 +151,15 @@ watch(inputMode, (newMode, oldMode) => {
         uploadedContent.value = form.value.content;
     }
 });
+
+// 重置上传状态
+function resetUpload() {
+    uploadStatus.value = 'idle';
+    uploadError.value = null;
+    selectedFileName.value = '';
+    uploadedContent.value = '';
+    form.value.content = manualContent.value || '#!/bin/bash\n';
+}
 
 onMounted(async () => {
     if (isEdit.value) {
@@ -181,27 +223,31 @@ function validateFile(file: File): string | null {
 
 function handleFile(file: File) {
     uploadError.value = null;
+    selectedFileName.value = file.name;
 
     // 验证文件
     const error = validateFile(file);
     if (error) {
         uploadError.value = error;
+        uploadStatus.value = 'error';
         return;
     }
 
     // 读取文件内容
-    isUploading.value = true;
+    uploadStatus.value = 'uploading';
     const reader = new FileReader();
 
     reader.onload = (e) => {
         const content = e.target?.result as string;
         uploadedContent.value = content;
-        form.value.content = content; // 直接填充到表单
+        form.value.content = content;
+        uploadStatus.value = 'success';
         isUploading.value = false;
     };
 
     reader.onerror = () => {
         uploadError.value = '文件读取失败，请重试';
+        uploadStatus.value = 'error';
         isUploading.value = false;
     };
 
@@ -399,5 +445,95 @@ h1 {
 .input-area textarea {
     display: block;
     width: 100%;
+}
+
+.upload-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.upload-success,
+.upload-error {
+    padding: 16px;
+    border-radius: 6px;
+    margin-top: 12px;
+}
+
+.upload-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+.success-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #155724;
+    font-weight: 500;
+}
+
+.success-icon {
+    color: #28a745;
+    font-size: 18px;
+}
+
+.file-name {
+    margin: 8px 0;
+    color: #666;
+    font-size: 13px;
+}
+
+.upload-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #721c24;
+}
+
+.error-icon {
+    font-size: 18px;
+}
+
+.btn-reupload,
+.btn-retry {
+    margin-left: auto;
+    padding: 4px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-reupload {
+    background: #667eea;
+    color: white;
+}
+
+.btn-retry {
+    background: #dc3545;
+    color: white;
+}
+
+.drag-over {
+    border-color: #667eea !important;
+    background: #f8f7ff !important;
 }
 </style>

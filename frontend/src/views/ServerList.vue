@@ -62,15 +62,33 @@
                 </tr>
             </tbody>
         </table>
+
+        <Pagination 
+            v-if="pagination.total > 0"
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :total="pagination.total"
+            @change="handlePageChange"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useServerStore } from '@/stores/server';
+import Pagination from '@/components/Pagination.vue';
 
+const router = useRouter();
+const route = useRoute();
 const store = useServerStore();
 const selectedIds = ref<number[]>([]);
+
+const pagination = ref({
+    page: Number(route.query.page) || 1,
+    pageSize: Number(route.query.pageSize) || 10,
+    total: 0
+});
 
 const selectAll = computed({
     get: () => store.servers.length > 0 && selectedIds.value.length === store.servers.length,
@@ -79,8 +97,28 @@ const selectAll = computed({
     }
 });
 
+function loadData() {
+    store.fetchServers(pagination.value.page, pagination.value.pageSize);
+    pagination.value.total = store.pagination.total;
+}
+
+function handlePageChange(payload: { page: number; pageSize: number }) {
+    pagination.value.page = payload.page;
+    pagination.value.pageSize = payload.pageSize;
+    router.replace({ 
+        query: { page: payload.page, pageSize: payload.pageSize } 
+    });
+    store.fetchServers(payload.page, payload.pageSize);
+}
+
 onMounted(() => {
-    store.fetchServers();
+    loadData();
+});
+
+watch(() => route.query, (query) => {
+    pagination.value.page = Number(query.page) || 1;
+    pagination.value.pageSize = Number(query.pageSize) || 10;
+    loadData();
 });
 
 function toggleSelectAll() {
@@ -95,10 +133,10 @@ async function testConnection(id: number) {
     if (confirm('确定要测试此服务器的SSH连接吗？')) {
         try {
             await store.testConnection(id);
-            await store.fetchServers();
+            await store.fetchServers(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             alert('连接失败: ' + e.message);
-            await store.fetchServers();
+            await store.fetchServers(pagination.value.page, pagination.value.pageSize);
         }
     }
 }

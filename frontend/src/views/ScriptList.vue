@@ -34,18 +34,56 @@
                 暂无脚本，点击"+ 创建脚本"创建
             </div>
         </div>
+
+        <Pagination 
+            v-if="pagination.total > 0"
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :total="pagination.total"
+            @change="handlePageChange"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useScriptStore } from '@/stores/script';
+import Pagination from '@/components/Pagination.vue';
 
+const router = useRouter();
+const route = useRoute();
 const store = useScriptStore();
 const selectedIds = ref<number[]>([]);
 
+const pagination = ref({
+    page: Number(route.query.page) || 1,
+    pageSize: Number(route.query.pageSize) || 10,
+    total: 0
+});
+
+function loadData() {
+    store.fetchScripts(pagination.value.page, pagination.value.pageSize);
+    pagination.value.total = store.pagination.total;
+}
+
+function handlePageChange(payload: { page: number; pageSize: number }) {
+    pagination.value.page = payload.page;
+    pagination.value.pageSize = payload.pageSize;
+    router.replace({ 
+        query: { page: payload.page, pageSize: payload.pageSize } 
+    });
+    store.fetchScripts(payload.page, payload.pageSize);
+}
+
 onMounted(() => {
-    store.fetchScripts();
+    loadData();
+});
+
+watch(() => route.query, (query) => {
+    pagination.value.page = Number(query.page) || 1;
+    pagination.value.pageSize = Number(query.pageSize) || 10;
+    loadData();
 });
 
 async function deleteScript(id: number) {

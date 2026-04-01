@@ -11,6 +11,11 @@ export const useTaskStore = defineStore('task', () => {
     const error = ref<string | null>(null);
     const outputs = ref<Map<number, string>>(new Map());
     const ws = ref<WebSocket | null>(null);
+    const pagination = ref({
+        page: 1,
+        pageSize: 10,
+        total: 0
+    });
 
     const taskStats = computed(() => {
         const running = tasks.value.filter(t => t.status === 'running').length;
@@ -19,11 +24,17 @@ export const useTaskStore = defineStore('task', () => {
         return { running, completed, cancelled, total: tasks.value.length };
     });
 
-    async function fetchTasks() {
+    async function fetchTasks(page = 1, pageSize = 10) {
         loading.value = true;
         error.value = null;
         try {
-            tasks.value = await taskApi.list();
+            const res = await taskApi.list({ page, pageSize });
+            tasks.value = res.data;
+            pagination.value = {
+                page: res.page,
+                pageSize: res.pageSize,
+                total: res.total
+            };
         } catch (e: any) {
             error.value = e.message;
         } finally {
@@ -36,7 +47,7 @@ export const useTaskStore = defineStore('task', () => {
         error.value = null;
         try {
             const result = await taskApi.create(data);
-            await fetchTasks();
+            await fetchTasks(pagination.value.page, pagination.value.pageSize);
             return result;
         } catch (e: any) {
             error.value = e.message;
@@ -49,7 +60,7 @@ export const useTaskStore = defineStore('task', () => {
     async function cancelTask(id: number) {
         try {
             await taskApi.cancel(id);
-            await fetchTasks();
+            await fetchTasks(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -61,7 +72,7 @@ export const useTaskStore = defineStore('task', () => {
         error.value = null;
         try {
             await taskApi.deleteMany(ids);
-            await fetchTasks();
+            await fetchTasks(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -116,7 +127,7 @@ export const useTaskStore = defineStore('task', () => {
             const current = outputs.value.get(data.server_id) || '';
             outputs.value.set(data.server_id, current + (data.content || ''));
         } else if (data.type === 'task_done' || data.type === 'server_done') {
-            fetchTasks();
+            fetchTasks(pagination.value.page, pagination.value.pageSize);
         }
     }
 
@@ -138,6 +149,7 @@ export const useTaskStore = defineStore('task', () => {
         loading,
         error,
         outputs,
+        pagination,
         taskStats,
         fetchTasks,
         createTask,

@@ -7,12 +7,23 @@ export const useScriptStore = defineStore('script', () => {
     const scripts = ref<Script[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
+    const pagination = ref({
+        page: 1,
+        pageSize: 10,
+        total: 0
+    });
 
-    async function fetchScripts() {
+    async function fetchScripts(page = 1, pageSize = 10) {
         loading.value = true;
         error.value = null;
         try {
-            scripts.value = await scriptApi.list();
+            const res = await scriptApi.list({ page, pageSize });
+            scripts.value = res.data;
+            pagination.value = {
+                page: res.page,
+                pageSize: res.pageSize,
+                total: res.total
+            };
         } catch (e: any) {
             error.value = e.message;
         } finally {
@@ -25,7 +36,7 @@ export const useScriptStore = defineStore('script', () => {
         error.value = null;
         try {
             const result = await scriptApi.create(data);
-            await fetchScripts();
+            await fetchScripts(pagination.value.page, pagination.value.pageSize);
             return result;
         } catch (e: any) {
             error.value = e.message;
@@ -40,7 +51,7 @@ export const useScriptStore = defineStore('script', () => {
         error.value = null;
         try {
             await scriptApi.update(id, data);
-            await fetchScripts();
+            await fetchScripts(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -54,7 +65,7 @@ export const useScriptStore = defineStore('script', () => {
         error.value = null;
         try {
             await scriptApi.delete(id);
-            await fetchScripts();
+            await fetchScripts(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -68,7 +79,7 @@ export const useScriptStore = defineStore('script', () => {
         error.value = null;
         try {
             await scriptApi.deleteMany(ids);
-            await fetchScripts();
+            await fetchScripts(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -81,6 +92,7 @@ export const useScriptStore = defineStore('script', () => {
         scripts,
         loading,
         error,
+        pagination,
         fetchScripts,
         createScript,
         updateScript,

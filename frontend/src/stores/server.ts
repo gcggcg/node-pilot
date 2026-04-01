@@ -7,12 +7,23 @@ export const useServerStore = defineStore('server', () => {
     const servers = ref<Server[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
+    const pagination = ref({
+        page: 1,
+        pageSize: 10,
+        total: 0
+    });
 
-    async function fetchServers() {
+    async function fetchServers(page = 1, pageSize = 10) {
         loading.value = true;
         error.value = null;
         try {
-            servers.value = await serverApi.list();
+            const res = await serverApi.list({ page, pageSize });
+            servers.value = res.data;
+            pagination.value = {
+                page: res.page,
+                pageSize: res.pageSize,
+                total: res.total
+            };
         } catch (e: any) {
             error.value = e.message;
         } finally {
@@ -25,7 +36,7 @@ export const useServerStore = defineStore('server', () => {
         error.value = null;
         try {
             const result = await serverApi.create(data);
-            await fetchServers();
+            await fetchServers(pagination.value.page, pagination.value.pageSize);
             return result;
         } catch (e: any) {
             error.value = e.message;
@@ -40,7 +51,7 @@ export const useServerStore = defineStore('server', () => {
         error.value = null;
         try {
             await serverApi.update(id, data);
-            await fetchServers();
+            await fetchServers(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -54,7 +65,7 @@ export const useServerStore = defineStore('server', () => {
         error.value = null;
         try {
             await serverApi.delete(id);
-            await fetchServers();
+            await fetchServers(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -68,7 +79,7 @@ export const useServerStore = defineStore('server', () => {
         error.value = null;
         try {
             await serverApi.deleteMany(ids);
-            await fetchServers();
+            await fetchServers(pagination.value.page, pagination.value.pageSize);
         } catch (e: any) {
             error.value = e.message;
             throw e;
@@ -90,6 +101,7 @@ export const useServerStore = defineStore('server', () => {
         servers,
         loading,
         error,
+        pagination,
         fetchServers,
         createServer,
         updateServer,

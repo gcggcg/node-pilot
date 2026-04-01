@@ -62,6 +62,14 @@
             </tbody>
         </table>
 
+        <Pagination 
+            v-if="pagination.total > 0"
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :total="pagination.total"
+            @change="handlePageChange"
+        />
+
         <div v-if="showCreateDialog" class="dialog-overlay" @click.self="showCreateDialog = false">
             <div class="dialog">
                 <h2>运行任务</h2>
@@ -104,11 +112,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useTaskStore } from '@/stores/task';
 import { useScriptStore } from '@/stores/script';
 import { useServerStore } from '@/stores/server';
+import Pagination from '@/components/Pagination.vue';
 
+const router = useRouter();
+const route = useRoute();
 const store = useTaskStore();
 const scriptStore = useScriptStore();
 const serverStore = useServerStore();
@@ -122,6 +134,12 @@ const newTask = ref({
     server_ids: [] as number[]
 });
 
+const pagination = ref({
+    page: Number(route.query.page) || 1,
+    pageSize: Number(route.query.pageSize) || 10,
+    total: 0
+});
+
 const selectAll = computed({
     get: () => store.tasks.length > 0 && selectedIds.value.length === store.tasks.length,
     set: (val: boolean) => {
@@ -129,10 +147,30 @@ const selectAll = computed({
     }
 });
 
+function loadData() {
+    store.fetchTasks(pagination.value.page, pagination.value.pageSize);
+    pagination.value.total = store.pagination.total;
+}
+
+function handlePageChange(payload: { page: number; pageSize: number }) {
+    pagination.value.page = payload.page;
+    pagination.value.pageSize = payload.pageSize;
+    router.replace({ 
+        query: { page: payload.page, pageSize: payload.pageSize } 
+    });
+    store.fetchTasks(payload.page, payload.pageSize);
+}
+
 onMounted(() => {
-    store.fetchTasks();
+    loadData();
     scriptStore.fetchScripts();
     serverStore.fetchServers();
+});
+
+watch(() => route.query, (query) => {
+    pagination.value.page = Number(query.page) || 1;
+    pagination.value.pageSize = Number(query.pageSize) || 10;
+    loadData();
 });
 
 function toggleSelectAll() {

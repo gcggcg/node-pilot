@@ -142,7 +142,7 @@ const uploadStatus = ref<'idle' | 'uploading' | 'success' | 'error'>('idle');
 const selectedFileName = ref<string>('');
 
 // 切换模式时同步内容
-watch(inputMode, (newMode, oldMode) => {
+watch(inputMode, (newMode, _oldMode) => {
     if (newMode === 'manual' && uploadedContent.value) {
         // 切换到手动模式，保存上传内容用于恢复
         manualContent.value = form.value.content;

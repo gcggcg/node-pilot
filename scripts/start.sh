@@ -39,16 +39,54 @@ fi
 echo ""
 
 BINARY="$PROJECT_DIR/backend/node-pilot"
+BACKEND_DIR="$PROJECT_DIR/backend"
+FRONTEND_DIR="$PROJECT_DIR/frontend"
+WEB_DIR="$BACKEND_DIR/web"
+
+# 检查后端二进制是否存在
 if [ ! -f "$BINARY" ]; then
-    echo "未找到二进制文件，开始自动构建..."
-    cd "$PROJECT_DIR/backend"
+    echo "开始自动构建..."
+    echo ""
+
+    # 构建前端
+    echo "[1/3] 构建前端..."
+    cd "$FRONTEND_DIR"
+    if [ ! -d "node_modules" ]; then
+        echo "安装前端依赖..."
+        npm install --silent 2>/dev/null || npm install
+    fi
+    npm run build
+    if [ $? -ne 0 ]; then
+        echo "❌ 前端构建失败"
+        exit 1
+    fi
+    echo "前端构建完成"
+    echo ""
+
+    # 复制前端到后端web目录
+    echo "[2/3] 复制前端到后端..."
+    mkdir -p "$WEB_DIR"
+    cp -r "$FRONTEND_DIR/dist/"* "$WEB_DIR/"
+    echo "前端复制完成"
+    echo ""
+
+    # 构建后端
+    echo "[3/3] 构建后端..."
+    cd "$BACKEND_DIR"
     go build -o node-pilot ./cmd/server
-    echo "构建完成!"
+    if [ $? -ne 0 ]; then
+        echo "❌ 后端构建失败"
+        exit 1
+    fi
+    echo "后端构建完成"
+    echo ""
+    echo "✅ 构建流程完成!"
 fi
 
 # 启动服务
+echo ""
 echo "启动服务..."
-cd "$PROJECT_DIR/backend"
+cd "$BACKEND_DIR"
 
 # 根据是否开启debug模式来设置参数
 CMD="$BINARY --db $DATA_DIR/servers.db --listen :${FRONTEND_PORT} --log $LOG_FILE"

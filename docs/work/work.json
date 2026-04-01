@@ -1,13 +1,12 @@
 {
-  "wait": [
+  "wait": [],
+  "running": "",
+  "succeed": [
+    "01-create-pagination-component.md",
+    "02-backend-pagination-api.md",
     "03-frontend-api-pagination.md",
     "04-frontend-store-pagination.md",
     "05-server-list-pagination.md",
     "06-script-task-list-pagination.md"
-  ],
-  "running": "03-frontend-api-pagination.md",
-  "succeed": [
-    "01-create-pagination-component.md",
-    "02-backend-pagination-api.md"
   ]
 }

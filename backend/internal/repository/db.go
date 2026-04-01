@@ -123,6 +123,35 @@ func (r *Repository) ListServers() ([]*model.Server, error) {
 	return servers, nil
 }
 
+func (r *Repository) ListServersWithPagination(page, pageSize int) ([]*model.Server, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var total int64
+	err := r.db.QueryRow("SELECT COUNT(*) FROM servers").Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(
+		"SELECT id, name, host, port, username, password_encrypted, connection_status, created_at, updated_at FROM servers ORDER BY id DESC LIMIT ? OFFSET ?",
+		pageSize, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var servers []*model.Server
+	for rows.Next() {
+		s := &model.Server{}
+		if err := rows.Scan(&s.ID, &s.Name, &s.Host, &s.Port, &s.Username, &s.PasswordEncrypted, &s.ConnectionStatus, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		servers = append(servers, s)
+	}
+	return servers, total, nil
+}
+
 func (r *Repository) GetServer(id int64) (*model.Server, error) {
 	s := &model.Server{}
 	err := r.db.QueryRow(`SELECT id, name, host, port, username, password_encrypted, connection_status, created_at, updated_at FROM servers WHERE id = ?`, id).
@@ -192,6 +221,35 @@ func (r *Repository) ListScripts() ([]*model.Script, error) {
 	return scripts, nil
 }
 
+func (r *Repository) ListScriptsWithPagination(page, pageSize int) ([]*model.Script, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var total int64
+	err := r.db.QueryRow("SELECT COUNT(*) FROM scripts").Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(
+		"SELECT id, name, description, content, target_path, created_at, updated_at FROM scripts ORDER BY id DESC LIMIT ? OFFSET ?",
+		pageSize, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var scripts []*model.Script
+	for rows.Next() {
+		s := &model.Script{}
+		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.Content, &s.TargetPath, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		scripts = append(scripts, s)
+	}
+	return scripts, total, nil
+}
+
 func (r *Repository) GetScript(id int64) (*model.Script, error) {
 	s := &model.Script{}
 	err := r.db.QueryRow(`SELECT id, name, description, content, target_path, created_at, updated_at FROM scripts WHERE id = ?`, id).
@@ -253,6 +311,35 @@ func (r *Repository) ListTasks() ([]*model.Task, error) {
 		tasks = append(tasks, t)
 	}
 	return tasks, nil
+}
+
+func (r *Repository) ListTasksWithPagination(page, pageSize int) ([]*model.Task, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var total int64
+	err := r.db.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(
+		"SELECT id, script_id, name, status, created_at, started_at, finished_at FROM tasks ORDER BY id DESC LIMIT ? OFFSET ?",
+		pageSize, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var tasks []*model.Task
+	for rows.Next() {
+		t := &model.Task{}
+		if err := rows.Scan(&t.ID, &t.ScriptID, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
+			return nil, 0, err
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, total, nil
 }
 
 func (r *Repository) GetTask(id int64) (*model.Task, error) {

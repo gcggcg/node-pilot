@@ -51,7 +51,17 @@ func NewHandler(repo *repository.Repository, sshPool *service.SSHPool, wsHub *ws
 }
 
 func (h *Handler) ListServers(c *gin.Context) {
-	servers, err := h.repo.ListServers()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	servers, total, err := h.repo.ListServersWithPagination(page, pageSize)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -59,7 +69,12 @@ func (h *Handler) ListServers(c *gin.Context) {
 	if servers == nil {
 		servers = []*model.Server{}
 	}
-	c.JSON(200, servers)
+	c.JSON(200, gin.H{
+		"data":     servers,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
 }
 
 func (h *Handler) GetServer(c *gin.Context) {
@@ -194,7 +209,17 @@ func (h *Handler) TestServerConnection(c *gin.Context) {
 }
 
 func (h *Handler) ListScripts(c *gin.Context) {
-	scripts, err := h.repo.ListScripts()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	scripts, total, err := h.repo.ListScriptsWithPagination(page, pageSize)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -202,7 +227,12 @@ func (h *Handler) ListScripts(c *gin.Context) {
 	if scripts == nil {
 		scripts = []*model.Script{}
 	}
-	c.JSON(200, scripts)
+	c.JSON(200, gin.H{
+		"data":     scripts,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
 }
 
 func (h *Handler) GetScript(c *gin.Context) {
@@ -298,7 +328,17 @@ func (h *Handler) DeleteScripts(c *gin.Context) {
 }
 
 func (h *Handler) ListTasks(c *gin.Context) {
-	tasks, err := h.repo.ListTasks()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	tasks, total, err := h.repo.ListTasksWithPagination(page, pageSize)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -306,7 +346,12 @@ func (h *Handler) ListTasks(c *gin.Context) {
 	if tasks == nil {
 		tasks = []*model.Task{}
 	}
-	c.JSON(200, tasks)
+	c.JSON(200, gin.H{
+		"data":     tasks,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
 }
 
 func (h *Handler) GetTask(c *gin.Context) {

@@ -205,6 +205,7 @@ async function createTask() {
 async function cancelTask(id: number) {
     if (confirm('确定要取消此任务吗？')) {
         await store.cancelTask(id);
+        pagination.value.total = store.pagination.total;
     }
 }
 
@@ -212,6 +213,7 @@ async function deleteSelected() {
     if (confirm(`确定要删除已选的 ${selectedIds.value.length} 个任务吗？`)) {
         await store.deleteTasks(selectedIds.value);
         selectedIds.value = [];
+        pagination.value.total = store.pagination.total;
     }
 }
 

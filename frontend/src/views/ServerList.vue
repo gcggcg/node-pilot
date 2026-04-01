@@ -154,6 +154,7 @@ async function deleteServer(id: number) {
     if (confirm('确定要删除此服务器吗？')) {
         await store.deleteServer(id);
         selectedIds.value = selectedIds.value.filter(i => i !== id);
+        pagination.value.total = store.pagination.total;
     }
 }
 
@@ -161,6 +162,7 @@ async function deleteSelected() {
     if (confirm(`确定要删除已选的 ${selectedIds.value.length} 个服务器吗？`)) {
         await store.deleteServers(selectedIds.value);
         selectedIds.value = [];
+        pagination.value.total = store.pagination.total;
     }
 }
 </script>

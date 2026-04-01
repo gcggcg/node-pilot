@@ -90,6 +90,7 @@ async function deleteScript(id: number) {
     if (confirm('确定要删除此脚本吗？')) {
         await store.deleteScript(id);
         selectedIds.value = selectedIds.value.filter(i => i !== id);
+        pagination.value.total = store.pagination.total;
     }
 }
 
@@ -97,6 +98,7 @@ async function deleteSelected() {
     if (confirm(`确定要删除已选的 ${selectedIds.value.length} 个脚本吗？`)) {
         await store.deleteScripts(selectedIds.value);
         selectedIds.value = [];
+        pagination.value.total = store.pagination.total;
     }
 }
 </script>

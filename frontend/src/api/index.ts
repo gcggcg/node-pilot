@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ServerForm, ScriptForm, TaskForm } from '@/types';
+import type { ServerForm, ScriptForm, TaskForm, PaginatedResponse, PaginationParams } from '@/types';
 
 const api = axios.create({
     baseURL: '/api',
@@ -19,7 +19,12 @@ api.interceptors.response.use(
 );
 
 export const serverApi = {
-    list: () => api.get<any, any[]>('/servers'),
+    list: (params?: PaginationParams) => {
+        const query = params 
+            ? `?page=${params.page || 1}&pageSize=${params.pageSize || 10}`
+            : '';
+        return api.get<any, PaginatedResponse<any>>(`/servers${query}`);
+    },
     get: (id: number) => api.get<any, any>(`/servers/${id}`),
     create: (data: ServerForm) => api.post('/servers', data),
     update: (id: number, data: ServerForm) => api.put(`/servers/${id}`, data),
@@ -29,7 +34,12 @@ export const serverApi = {
 };
 
 export const scriptApi = {
-    list: () => api.get<any, any[]>('/scripts'),
+    list: (params?: PaginationParams) => {
+        const query = params 
+            ? `?page=${params.page || 1}&pageSize=${params.pageSize || 10}`
+            : '';
+        return api.get<any, PaginatedResponse<any>>(`/scripts${query}`);
+    },
     get: (id: number) => api.get<any, any>(`/scripts/${id}`),
     create: (data: ScriptForm) => api.post('/scripts', data),
     update: (id: number, data: ScriptForm) => api.put(`/scripts/${id}`, data),
@@ -38,7 +48,12 @@ export const scriptApi = {
 };
 
 export const taskApi = {
-    list: () => api.get<any, any[]>('/tasks'),
+    list: (params?: PaginationParams) => {
+        const query = params 
+            ? `?page=${params.page || 1}&pageSize=${params.pageSize || 10}`
+            : '';
+        return api.get<any, PaginatedResponse<any>>(`/tasks${query}`);
+    },
     get: (id: number) => api.get<any, any>(`/tasks/${id}`),
     create: (data: TaskForm) => api.post('/tasks', data),
     cancel: (id: number) => api.delete(`/tasks/${id}`),

@@ -195,6 +195,7 @@ async function createTask() {
         });
         showCreateDialog.value = false;
         newTask.value = { name: '', script_id: '', server_ids: [] };
+        pagination.value.total = store.pagination.total;
     } catch (e: any) {
         alert(e.message || '创建任务失败');
     } finally {

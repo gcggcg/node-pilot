@@ -4,7 +4,7 @@
             共 {{ total }} 条记录，当前 {{ currentPage }}/{{ totalPages }} 页
         </div>
         <div class="pagination-controls">
-            <select v-model="pageSize" @change="onPageSizeChange" class="page-size-select">
+            <select v-model="localPageSize" @change="onPageSizeChange" class="page-size-select">
                 <option :value="10">10条/页</option>
                 <option :value="20">20条/页</option>
                 <option :value="50">50条/页</option>
@@ -52,6 +52,12 @@ const emit = defineEmits<{
     (e: 'change', payload: { page: number; pageSize: number }): void;
 }>();
 
+// Use computed wrapper for pageSize to allow v-model binding (props are read-only)
+const localPageSize = computed({
+    get: () => props.pageSize,
+    set: (val) => emit('update:pageSize', val)
+});
+
 const jumpPage = ref(props.currentPage);
 
 const totalPages = computed(() => Math.ceil(props.total / props.pageSize) || 1);
@@ -73,7 +79,7 @@ const visiblePages = computed(() => {
 function goToPage(page: number) {
     if (page >= 1 && page <= totalPages.value) {
         emit('update:currentPage', page);
-        emit('change', { page, pageSize: props.pageSize });
+        emit('change', { page, pageSize: localPageSize.value });
     }
 }
 
@@ -91,8 +97,8 @@ function handleJump() {
 }
 
 function onPageSizeChange() {
-    emit('update:pageSize', props.pageSize);
-    emit('change', { page: 1, pageSize: props.pageSize });
+    emit('update:pageSize', localPageSize.value);
+    emit('change', { page: 1, pageSize: localPageSize.value });
 }
 
 watch(() => props.currentPage, (val) => {

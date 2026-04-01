@@ -417,11 +417,6 @@ h1 {
     color: #999;
 }
 
-.drag-over {
-    border-color: #667eea !important;
-    background: #f8f7ff;
-}
-
 .upload-preview {
     border: 1px solid #ddd;
     border-radius: 6px;

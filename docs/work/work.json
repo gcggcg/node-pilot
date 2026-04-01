@@ -1,10 +1,12 @@
 {
-  "wait": [],
-  "running": "",
-  "succeed": [
-    "01-add-mode-toggle-and-upload-ui.md",
-    "02-implement-file-reading.md",
-    "03-mode-switching-data-preservation.md",
-    "04-upload-states-and-error-handling.md"
-  ]
+  "wait": [
+    "01-create-pagination-component.md",
+    "02-backend-pagination-api.md",
+    "03-frontend-api-pagination.md",
+    "04-frontend-store-pagination.md",
+    "05-server-list-pagination.md",
+    "06-script-task-list-pagination.md"
+  ],
+  "running": "01-create-pagination-component.md",
+  "succeed": []
 }

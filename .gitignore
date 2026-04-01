@@ -2,4 +2,5 @@
 .idea/
 go.sum
 logs/
+frontend/node_modules/
 *.log

@@ -22,7 +22,44 @@
 
             <div class="form-group">
                 <label>脚本内容</label>
-                <textarea v-model="form.content" rows="12" required placeholder="#!/bin/bash&#10;echo 'Hello World'" class="code"></textarea>
+                
+                <div class="mode-toggle">
+                    <button 
+                        type="button" 
+                        :class="['mode-btn', { active: inputMode === 'manual' }]"
+                        @click="inputMode = 'manual'"
+                    >
+                        手动输入
+                    </button>
+                    <button 
+                        type="button" 
+                        :class="['mode-btn', { active: inputMode === 'upload' }]"
+                        @click="inputMode = 'upload'"
+                    >
+                        文件上传
+                    </button>
+                </div>
+
+                <div v-if="inputMode === 'upload'" class="upload-area" 
+                    @dragover.prevent="onDragOver"
+                    @dragleave.prevent="onDragLeave"
+                    @drop.prevent="onDrop"
+                >
+                    <input 
+                        type="file" 
+                        ref="fileInput" 
+                        accept=".txt,.sh,.py,.js,.sql"
+                        @change="onFileSelect"
+                        style="display: none"
+                    />
+                    <div class="upload-placeholder" @click="triggerFileSelect">
+                        <span class="upload-icon">📁</span>
+                        <p>拖拽文件到此处，或 <span class="link">点击选择</span></p>
+                        <p class="hint">支持 .txt, .sh, .py, .js, .sql 文件，不超过 5MB</p>
+                    </div>
+                </div>
+
+                <textarea v-else v-model="form.content" rows="12" required placeholder="#!/bin/bash&#10;echo 'Hello World'" class="code"></textarea>
             </div>
 
             <div class="actions">
@@ -55,6 +92,8 @@ const form = ref<ScriptForm>({
 
 const loading = ref(false);
 const isEdit = computed(() => !!route.params.id);
+const inputMode = ref<'manual' | 'upload'>('manual');
+const fileInput = ref<HTMLInputElement | null>(null);
 
 onMounted(async () => {
     if (isEdit.value) {
@@ -73,6 +112,30 @@ onMounted(async () => {
         }
     }
 });
+
+function triggerFileSelect() {
+    fileInput.value?.click();
+}
+
+function onDragOver(event: DragEvent) {
+    (event.currentTarget as HTMLElement).classList.add('drag-over');
+}
+
+function onDragLeave(event: DragEvent) {
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+}
+
+function onDrop(event: DragEvent) {
+    (event.currentTarget as HTMLElement).classList.remove('drag-over');
+}
+
+function onFileSelect(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+        // File handling will be implemented in task 02
+    }
+}
 
 async function handleSubmit() {
     loading.value = true;
@@ -171,5 +234,66 @@ h1 {
 .btn-secondary {
     background: #e9ecef;
     color: #495057;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.mode-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.mode-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+.upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.upload-placeholder {
+    cursor: pointer;
+}
+
+.upload-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.upload-placeholder p {
+    margin: 8px 0;
+    color: #666;
+}
+
+.upload-placeholder .link {
+    color: #667eea;
+    text-decoration: underline;
+}
+
+.upload-placeholder .hint {
+    font-size: 12px;
+    color: #999;
+}
+
+.drag-over {
+    border-color: #667eea !important;
+    background: #f8f7ff;
 }
 </style>

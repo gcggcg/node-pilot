@@ -1,11 +1,11 @@
 {
   "wait": [
-    "02-implement-file-reading.md",
     "03-mode-switching-data-preservation.md",
     "04-upload-states-and-error-handling.md"
   ],
-  "running": "02-implement-file-reading.md",
+  "running": "03-mode-switching-data-preservation.md",
   "succeed": [
-    "01-add-mode-toggle-and-upload-ui.md"
+    "01-add-mode-toggle-and-upload-ui.md",
+    "02-implement-file-reading.md"
   ]
 }

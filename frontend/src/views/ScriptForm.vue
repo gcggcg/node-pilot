@@ -59,7 +59,16 @@
                     </div>
                 </div>
 
-                <textarea v-else v-model="form.content" rows="12" required placeholder="#!/bin/bash&#10;echo 'Hello World'" class="code"></textarea>
+                <div v-if="inputMode === 'manual'" class="input-area">
+                    <textarea v-model="form.content" rows="12" required placeholder="#!/bin/bash&#10;echo 'Hello World'" class="code"></textarea>
+                </div>
+                <div v-else class="upload-preview">
+                    <div class="preview-header">
+                        <span>文件内容预览</span>
+                        <span class="file-info">{{ uploadedContent.length }} 字符</span>
+                    </div>
+                    <textarea v-model="form.content" rows="12" class="code" readonly></textarea>
+                </div>
             </div>
 
             <div class="actions">
@@ -73,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useScriptStore } from '@/stores/script';
 import { scriptApi } from '@/api';
@@ -98,6 +107,17 @@ const isUploading = ref(false);
 const uploadError = ref<string | null>(null);
 const manualContent = ref(form.value.content);
 const uploadedContent = ref('');
+
+// 切换模式时同步内容
+watch(inputMode, (newMode, oldMode) => {
+    if (newMode === 'manual' && uploadedContent.value) {
+        // 切换到手动模式，保存上传内容用于恢复
+        manualContent.value = form.value.content;
+    } else if (newMode === 'upload' && manualContent.value) {
+        // 切换到上传模式，保存手动输入内容用于恢复
+        uploadedContent.value = form.value.content;
+    }
+});
 
 onMounted(async () => {
     if (isEdit.value) {
@@ -189,6 +209,14 @@ function handleFile(file: File) {
 }
 
 async function handleSubmit() {
+    // 切换到手动模式以确保内容同步
+    if (inputMode.value === 'manual') {
+        manualContent.value = form.value.content;
+    }
+    form.value.content = inputMode.value === 'manual' 
+        ? manualContent.value 
+        : uploadedContent.value;
+
     loading.value = true;
     try {
         if (isEdit.value) {
@@ -346,5 +374,30 @@ h1 {
 .drag-over {
     border-color: #667eea !important;
     background: #f8f7ff;
+}
+
+.upload-preview {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    font-size: 12px;
+    color: #666;
+}
+
+.file-info {
+    color: #667eea;
+}
+
+.input-area textarea {
+    display: block;
+    width: 100%;
 }
 </style>

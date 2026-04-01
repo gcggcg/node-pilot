@@ -94,6 +94,10 @@ const loading = ref(false);
 const isEdit = computed(() => !!route.params.id);
 const inputMode = ref<'manual' | 'upload'>('manual');
 const fileInput = ref<HTMLInputElement | null>(null);
+const isUploading = ref(false);
+const uploadError = ref<string | null>(null);
+const manualContent = ref(form.value.content);
+const uploadedContent = ref('');
 
 onMounted(async () => {
     if (isEdit.value) {
@@ -127,14 +131,61 @@ function onDragLeave(event: DragEvent) {
 
 function onDrop(event: DragEvent) {
     (event.currentTarget as HTMLElement).classList.remove('drag-over');
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+        handleFile(file);
+    }
 }
 
 function onFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (file) {
-        // File handling will be implemented in task 02
+        handleFile(file);
     }
+}
+
+const ALLOWED_EXTENSIONS = ['.txt', '.sh', '.py', '.js', '.sql'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+function validateFile(file: File): string | null {
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        return `不支持的文件格式，请上传 ${ALLOWED_EXTENSIONS.join(', ')} 文件`;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+        return '文件大小超过5MB限制';
+    }
+    return null;
+}
+
+function handleFile(file: File) {
+    uploadError.value = null;
+
+    // 验证文件
+    const error = validateFile(file);
+    if (error) {
+        uploadError.value = error;
+        return;
+    }
+
+    // 读取文件内容
+    isUploading.value = true;
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        const content = e.target?.result as string;
+        uploadedContent.value = content;
+        form.value.content = content; // 直接填充到表单
+        isUploading.value = false;
+    };
+
+    reader.onerror = () => {
+        uploadError.value = '文件读取失败，请重试';
+        isUploading.value = false;
+    };
+
+    reader.readAsText(file);
 }
 
 async function handleSubmit() {

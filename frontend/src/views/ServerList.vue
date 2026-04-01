@@ -97,8 +97,8 @@ const selectAll = computed({
     }
 });
 
-function loadData() {
-    store.fetchServers(pagination.value.page, pagination.value.pageSize);
+async function loadData() {
+    await store.fetchServers(pagination.value.page, pagination.value.pageSize);
     pagination.value.total = store.pagination.total;
 }
 

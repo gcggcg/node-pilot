@@ -147,8 +147,8 @@ const selectAll = computed({
     }
 });
 
-function loadData() {
-    store.fetchTasks(pagination.value.page, pagination.value.pageSize);
+async function loadData() {
+    await store.fetchTasks(pagination.value.page, pagination.value.pageSize);
     pagination.value.total = store.pagination.total;
 }
 

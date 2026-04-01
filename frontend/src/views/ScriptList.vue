@@ -62,8 +62,8 @@ const pagination = ref({
     total: 0
 });
 
-function loadData() {
-    store.fetchScripts(pagination.value.page, pagination.value.pageSize);
+async function loadData() {
+    await store.fetchScripts(pagination.value.page, pagination.value.pageSize);
     pagination.value.total = store.pagination.total;
 }
 

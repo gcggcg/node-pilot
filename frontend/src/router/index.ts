@@ -74,6 +74,24 @@ const router = createRouter({
             component: () => import('@/views/Profile.vue'),
             meta: { requiresAuth: true }
         },
+        {
+            path: '/files',
+            name: 'files',
+            component: () => import('@/views/FileList.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/files/new',
+            name: 'file-new',
+            component: () => import('@/views/FileForm.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/files/:id/edit',
+            name: 'file-edit',
+            component: () => import('@/views/FileForm.vue'),
+            meta: { requiresAuth: true }
+        },
     ]
 });
 

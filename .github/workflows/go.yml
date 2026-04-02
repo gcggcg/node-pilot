@@ -9,6 +9,7 @@ on:
 env:
   GO_VERSION: '1.25.7'
   GO111MODULE: 'on'
+  GO_MODULE_PATH: './backend'  # 添加go.mod文件所在的路径
 
 jobs:
 
@@ -16,11 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: .  # 确保在项目根目录执行
+        working-directory: ${{ env.GO_MODULE_PATH }}  # 设置工作目录为backend目录
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # 获取完整历史，有助于Go模块
+        fetch-depth: 0
     
     - name: Set up Go
       uses: actions/setup-go@v4
@@ -30,13 +31,20 @@ jobs:
     - name: Check go.mod
       run: |
         echo "当前目录结构:"
-        find . -name "go.mod" -o -name "main.go" | sort
+        pwd
+        ls -la
+        echo ""
+        echo "查找go.mod文件:"
+        find . -name "go.mod" | sort
         echo ""
         if [ -f "go.mod" ]; then
           echo "✅ 找到 go.mod 文件"
           cat go.mod
         else
           echo "❌ 未找到 go.mod 文件"
+          # 检查backend目录
+          echo "检查backend目录:"
+          ls -la backend/ || true
           # 自动创建 go.mod
           go mod init node-pilot || true
         fi
@@ -54,4 +62,27 @@ jobs:
       run: go list ./...
     
     - name: Build binary
-      run: go build -o node-pilot ./backend/cmd/server/main.go
+      run: |
+        go build -o ../../node-pilot ./cmd/server/main.go
+        echo "构建完成，文件保存在项目根目录:"
+        ls -la ../../node-pilot || true
+    
+    - name: Verify binary
+      run: |
+        if [ -f "../../node-pilot" ]; then
+          echo "✅ 二进制文件构建成功"
+          file ../../node-pilot
+        else
+          echo "❌ 二进制文件构建失败"
+          # 尝试在项目根目录查找
+          echo "在项目根目录查找:"
+          find ../.. -name "node-pilot" -type f
+          exit 1
+        fi
+    
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: server-binary
+        path: node-pilot
+        retention-days: 7

@@ -394,12 +394,9 @@ func (h *Handler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 创建任务-服务器关联（批量）
-	if err := h.repo.CreateTaskServers(id, input.ServerIDs); err != nil {
-		h.repo.DeleteTasks([]int64{id})
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
+	// 注意：不再在此创建 task_servers 关联
+	// ExecuteTask 执行时会通过 executeOnServer 自动创建 task_servers 记录
+	// 这样可以避免重复记录问题
 
 	// 移除自动执行逻辑 - 现在需要手动调用 ExecuteTask
 	// go func() {

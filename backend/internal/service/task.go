@@ -90,8 +90,14 @@ func (e *TaskExecutor) ExecuteTask(taskID int64) error {
 		return fmt.Errorf("failed to get script: %w", err)
 	}
 
+	// 构建 serverID -> taskServerID 映射，用于更新已有记录
+	serverTaskServerMap := make(map[int64]int64)
+	for _, ts := range taskServers {
+		serverTaskServerMap[ts.ServerID] = ts.ID
+	}
+
 	// 在 goroutine 中执行
-	go e.ExecuteScript(task, script, servers, password)
+	go e.ExecuteScript(task, script, servers, password, serverTaskServerMap)
 
 	return nil
 }
@@ -138,7 +144,7 @@ func (e *TaskExecutor) TestConnection(server *model.Server, password string) err
 	return nil
 }
 
-func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, servers []*model.Server, password string) {
+func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, servers []*model.Server, password string, serverTaskServerMap map[int64]int64) {
 	if e.debug {
 		logger.Debug("[TASK-%d] ========== 任务开始执行 ==========", task.ID)
 		logger.Debug("[TASK-%d] 脚本名称: %s", task.ID, script.Name)
@@ -184,7 +190,7 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 		if e.debug {
 			logger.Debug("[TASK-%d] 执行批次 %d-%d (共%d台服务器)", task.ID, i+1, end, len(servers))
 		}
-		e.executeBatch(task, script, batch, password, i, len(servers))
+		e.executeBatch(task, script, batch, password, i, len(servers), serverTaskServerMap)
 		time.Sleep(500 * time.Millisecond)
 	}
 
@@ -233,19 +239,19 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 	}, uint64(task.ID))
 }
 
-func (e *TaskExecutor) executeBatch(task *model.Task, script *model.Script, servers []*model.Server, password string, offset, total int) {
+func (e *TaskExecutor) executeBatch(task *model.Task, script *model.Script, servers []*model.Server, password string, offset, total int, serverTaskServerMap map[int64]int64) {
 	var wg sync.WaitGroup
 	for i, srv := range servers {
 		wg.Add(1)
 		go func(srv *model.Server, idx int) {
 			defer wg.Done()
-			e.executeOnServer(task, script, srv, password, offset+idx, total)
+			e.executeOnServer(task, script, srv, password, offset+idx, total, serverTaskServerMap)
 		}(srv, i)
 	}
 	wg.Wait()
 }
 
-func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, srv *model.Server, password string, idx, total int) {
+func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, srv *model.Server, password string, idx, total int, serverTaskServerMap map[int64]int64) {
 	started := time.Now()
 
 	if e.debug {
@@ -255,14 +261,21 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 		logger.Debug("[TASK-%d][SERVER-%d] 目标路径: %s", task.ID, srv.ID, script.TargetPath)
 	}
 
-	ts := &model.TaskServer{
-		TaskID:   task.ID,
-		ServerID: srv.ID,
-		Status:   "running",
+	// 查找已有的 task_servers 记录ID，如果不存在则创建新记录
+	var tsID int64
+	if existingID, ok := serverTaskServerMap[srv.ID]; ok {
+		tsID = existingID
+		// 更新已有记录的状态为 running
+		e.repo.UpdateTaskServerByIDs(task.ID, srv.ID, "running", "", "", &started, nil)
+	} else {
+		// 如果没有找到已有记录（理论上不应该发生），创建新记录
+		ts := &model.TaskServer{
+			TaskID:   task.ID,
+			ServerID: srv.ID,
+			Status:   "running",
+		}
+		tsID, _ = e.repo.CreateTaskServer(ts)
 	}
-	id, _ := e.repo.CreateTaskServer(ts)
-
-	e.repo.UpdateTaskServerStatus(id, "running", "", "", &started, nil)
 
 	e.wsHub.BroadcastToTask(&model.WSMessage{
 		Type:       "server_start",
@@ -281,7 +294,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] SSH连接失败: %v", task.ID, srv.ID, err)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", err.Error(), &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", err.Error(), &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -312,7 +325,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] 创建SSH会话失败: %v", task.ID, srv.ID, err)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", err.Error(), &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", err.Error(), &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -332,7 +345,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] 创建目录失败: %s", task.ID, srv.ID, errMsg)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", errMsg, &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", errMsg, &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -359,7 +372,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] 创建SFTP客户端失败: %v", task.ID, srv.ID, err)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", err.Error(), &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", err.Error(), &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -379,7 +392,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] SFTP创建文件失败: %s", task.ID, srv.ID, errMsg)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", errMsg, &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", errMsg, &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -400,7 +413,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] SFTP写入文件失败: %s", task.ID, srv.ID, errMsg)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", errMsg, &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", errMsg, &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -427,7 +440,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] 创建chmod会话失败: %v", task.ID, srv.ID, err)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", err.Error(), &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", err.Error(), &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -447,7 +460,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] chmod失败: %s", task.ID, srv.ID, errMsg)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", errMsg, &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", errMsg, &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -473,7 +486,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] 创建执行会话失败: %v", task.ID, srv.ID, err)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", "", err.Error(), &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", err.Error(), &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -514,7 +527,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] 脚本执行失败: %v", task.ID, srv.ID, err)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(id, "failed", output, err.Error(), &started, &finished)
+		e.repo.UpdateTaskServerStatus(tsID, "failed", output, err.Error(), &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -533,7 +546,7 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 		logger.Debug("[TASK-%d][SERVER-%d] ========== 服务器执行成功 ==========", task.ID, srv.ID)
 		logger.Debug("[TASK-%d][SERVER-%d] 执行输出 (最新50行):\n%s", task.ID, srv.ID, output)
 	}
-	e.repo.UpdateTaskServerStatus(id, "success", output, "", &started, &finished)
+	e.repo.UpdateTaskServerStatus(tsID, "success", output, "", &started, &finished)
 	e.wsHub.BroadcastToTask(&model.WSMessage{
 		Type:       "server_done",
 		TaskID:     task.ID,

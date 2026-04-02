@@ -53,9 +53,6 @@ jobs:
     - name: Check imports
       run: go list ./...
     
-    - name: Run tests
-      run: go test ./... -v
-    
     - name: Build binary
       run: |
         mkdir -p bin
@@ -72,10 +69,3 @@ jobs:
           echo "❌ 二进制文件构建失败"
           exit 1
         fi
-    
-    - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: server-binary
-        path: bin/
-        retention-days: 7

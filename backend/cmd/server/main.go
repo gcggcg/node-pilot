@@ -69,6 +69,7 @@ func main() {
 
 	jwtSecret := "node-pilot-jwt-secret-key-32bytes!" // 32 bytes for HS256
 	authHandler := handler.NewAuthHandler(repo, jwtSecret)
+	userHandler := handler.NewUserHandler(repo, jwtSecret)
 
 	if *debug {
 		gin.SetMode(gin.DebugMode)
@@ -89,6 +90,16 @@ func main() {
 			auth.POST("/refresh", authHandler.RefreshToken)
 			auth.PUT("/profile", middleware.JWTAuth(jwtSecret), authHandler.UpdateProfile)
 			auth.PUT("/password", middleware.JWTAuth(jwtSecret), authHandler.ChangePassword)
+		}
+
+		admin := api.Group("/v1/admin")
+		admin.Use(middleware.JWTAuth(jwtSecret))
+		admin.Use(middleware.RequireRole("ROLE_ADMIN"))
+		{
+			admin.GET("/users", userHandler.ListUsers)
+			admin.POST("/users", userHandler.CreateUser)
+			admin.DELETE("/users/:id", userHandler.DeleteUsers)
+			admin.POST("/users/batch-delete", userHandler.DeleteUsers)
 		}
 
 		servers := api.Group("/servers")

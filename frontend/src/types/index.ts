@@ -148,6 +148,7 @@ export interface FileUpload {
     status: 'pending' | 'success' | 'failed';
     created_at: string;
     updated_at: string;
+    servers?: Server[];
 }
 
 export interface FileUploadServer {

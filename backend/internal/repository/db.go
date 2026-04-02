@@ -606,13 +606,172 @@ func (r *Repository) InitRootUser() error {
 		return err
 	}
 	if count == 0 {
-		// password: root, use bcrypt hash
 		hash, err := bcrypt.GenerateFromPassword([]byte("root"), bcrypt.DefaultCost)
 		if err != nil {
 			return err
 		}
 		_, err = r.db.Exec("INSERT INTO users (username, password_hash, role) VALUES ('root', ?, 'ROLE_ADMIN')", string(hash))
-		return err
+		if err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+// FileUpload Repository Methods
+
+func (r *Repository) CreateFileUpload(fu *model.FileUpload) (int64, error) {
+	result, err := r.db.Exec(
+		`INSERT INTO file_uploads (name, local_path, remote_path, status) VALUES (?, ?, ?, ?)`,
+		fu.Name, fu.LocalPath, fu.RemotePath, fu.Status)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func (r *Repository) CreateFileUploadServers(records []*model.FileUploadServer) error {
+	if len(records) == 0 {
+		return nil
+	}
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare(`INSERT INTO file_upload_servers (file_upload_id, server_id, server_name, status, file_name, remote_full_path) VALUES (?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for _, rec := range records {
+		_, err := stmt.Exec(rec.FileUploadID, rec.ServerID, rec.ServerName, rec.Status, rec.FileName, rec.RemoteFullPath)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (r *Repository) GetFileUploadByID(id int64) (*model.FileUpload, error) {
+	fu := &model.FileUpload{}
+	err := r.db.QueryRow(
+		`SELECT id, name, local_path, remote_path, status, created_at, updated_at FROM file_uploads WHERE id = ?`,
+		id).
+		Scan(&fu.ID, &fu.Name, &fu.LocalPath, &fu.RemotePath, &fu.Status, &fu.CreatedAt, &fu.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return fu, nil
+}
+
+func (r *Repository) ListFileUploads(page, pageSize int, status, keyword string, startTime, endTime *time.Time) ([]*model.FileUpload, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var total int64
+	err := r.db.QueryRow("SELECT COUNT(*) FROM file_uploads").Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT id, name, local_path, remote_path, status, created_at, updated_at FROM file_uploads WHERE 1=1`
+	var args []interface{}
+
+	if status != "" {
+		query += ` AND status = ?`
+		args = append(args, status)
+	}
+	if keyword != "" {
+		query += ` AND name LIKE ?`
+		keyword = "%" + keyword + "%"
+		args = append(args, keyword)
+	}
+	if startTime != nil {
+		query += ` AND created_at >= ?`
+		args = append(args, startTime)
+	}
+	if endTime != nil {
+		query += ` AND created_at <= ?`
+		args = append(args, endTime)
+	}
+
+	query += ` ORDER BY id DESC LIMIT ? OFFSET ?`
+	args = append(args, pageSize, offset)
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var uploads []*model.FileUpload
+	for rows.Next() {
+		fu := &model.FileUpload{}
+		if err := rows.Scan(&fu.ID, &fu.Name, &fu.LocalPath, &fu.RemotePath, &fu.Status, &fu.CreatedAt, &fu.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		uploads = append(uploads, fu)
+	}
+	return uploads, total, nil
+}
+
+func (r *Repository) UpdateFileUpload(fu *model.FileUpload) error {
+	_, err := r.db.Exec(
+		`UPDATE file_uploads SET name = ?, local_path = ?, remote_path = ?, status = ?, updated_at = ? WHERE id = ?`,
+		fu.Name, fu.LocalPath, fu.RemotePath, fu.Status, time.Now(), fu.ID)
+	return err
+}
+
+func (r *Repository) DeleteFileUploads(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `DELETE FROM file_uploads WHERE id IN (` + strings.Join(placeholders, ",") + `)`
+	_, err := r.db.Exec(query, args...)
+	return err
+}
+
+func (r *Repository) GetFileUploadServers(fileUploadID int64) ([]*model.FileUploadServer, error) {
+	rows, err := r.db.Query(
+		`SELECT id, file_upload_id, server_id, server_name, status, error_message, file_name, remote_full_path, created_at FROM file_upload_servers WHERE file_upload_id = ?`,
+		fileUploadID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var servers []*model.FileUploadServer
+	for rows.Next() {
+		s := &model.FileUploadServer{}
+		if err := rows.Scan(&s.ID, &s.FileUploadID, &s.ServerID, &s.ServerName, &s.Status, &s.ErrorMessage, &s.FileName, &s.RemoteFullPath, &s.CreatedAt); err != nil {
+			return nil, err
+		}
+		servers = append(servers, s)
+	}
+	return servers, nil
+}
+
+func (r *Repository) UpdateFileUploadServerStatus(id int64, status, errorMsg string) error {
+	_, err := r.db.Exec(
+		`UPDATE file_upload_servers SET status = ?, error_message = ? WHERE id = ?`,
+		status, errorMsg, id)
+	return err
+}
+
+func (r *Repository) GetFileUploadServerByID(id int64) (*model.FileUploadServer, error) {
+	s := &model.FileUploadServer{}
+	err := r.db.QueryRow(
+		`SELECT id, file_upload_id, server_id, server_name, status, error_message, file_name, remote_full_path, created_at FROM file_upload_servers WHERE id = ?`,
+		id).
+		Scan(&s.ID, &s.FileUploadID, &s.ServerID, &s.ServerName, &s.Status, &s.ErrorMessage, &s.FileName, &s.RemoteFullPath, &s.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }

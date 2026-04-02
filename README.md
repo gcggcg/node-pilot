@@ -34,7 +34,10 @@
 
 ### 🔒 安全特性
 
-- **AES-256-GCM 加密** - 密码安全存储，不在客户端暴露
+- **JWT 认证** - 支持 Access Token (24h) 和 Refresh Token (7天)
+- **用户权限管理** - 基于角色的访问控制 (ROLE_ADMIN / ROLE_USER)
+- **bcrypt 密码哈希** - 用户密码安全存储
+- **AES-256-GCM 加密** - SSH 密码安全存储，不在客户端暴露
 - **会话隔离** - 每个任务独立执行，互不干扰
 
 ### 🚀 性能优势
@@ -165,6 +168,8 @@ docker run -d -p 8080:8080 \
 | 后端        | Go + Gin                  |
 | 前端        | Vue 3 + TypeScript + Vite |
 | 数据库       | SQLite (嵌入式)              |
+| 认证        | JWT (golang-jwt/jwt)       |
+| 密码哈希      | bcrypt                     |
 | SSH       | golang.org/x/crypto/ssh   |
 | WebSocket | gorilla/websocket         |
 | 密码加密      | AES-256-GCM               |
@@ -216,6 +221,48 @@ journalctl --vacuum-time=7d
 ### 5. 定制化批量服务处理
 
 ## 🌐 API 参考
+
+### 认证管理
+
+> ⚠️ 认证接口需要携带 `Authorization: Bearer <access_token>` 头（Refresh Token 接口除外）
+
+| 方法     | 端点                          | 说明        | 认证 |
+|--------|---------------------------|-----------|------|
+| POST   | `/api/v1/auth/login`      | 用户登录     | 否    |
+| GET    | `/api/v1/auth/me`         | 获取当前用户信息 | ✅    |
+| POST   | `/api/v1/auth/refresh`    | 刷新 Token  | 否    |
+| PUT    | `/api/v1/auth/profile`    | 更新个人信息  | ✅    |
+| PUT    | `/api/v1/auth/password`    | 修改密码     | ✅    |
+
+**登录请求：**
+```json
+POST /api/v1/auth/login
+{
+  "username": "root",
+  "password": "root"
+}
+```
+
+**登录响应：**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 86400
+}
+```
+
+### 用户管理
+
+> ⚠️ 仅管理员 (ROLE_ADMIN) 可访问
+
+| 方法     | 端点                          | 说明      | 认证 |
+|--------|-----------------------------|---------|------|
+| GET    | `/api/v1/admin/users`       | 获取用户列表 | ✅ + ADMIN |
+| POST   | `/api/v1/admin/users`       | 创建用户   | ✅ + ADMIN |
+| DELETE | `/api/v1/admin/users/:id`   | 删除用户   | ✅ + ADMIN |
+| POST   | `/api/v1/admin/users/batch-delete` | 批量删除用户 | ✅ + ADMIN |
 
 ### 服务器管理
 
@@ -295,8 +342,13 @@ node-pilot/
 │   ├── cmd/server/
 │   │   └── main.go           # 程序入口
 │   ├── internal/
+│   │   ├── auth/            # JWT 认证工具
 │   │   ├── config/          # 配置管理
 │   │   ├── handler/          # HTTP 处理器
+│   │   │   ├── auth.go      # 认证相关处理器
+│   │   │   └── user.go      # 用户管理处理器
+│   │   ├── middleware/       # Gin 中间件
+│   │   │   └── auth.go      # JWT 认证中间件
 │   │   ├── model/            # 数据模型
 │   │   ├── repository/       # 数据库操作
 │   │   ├── service/          # 业务逻辑
@@ -309,8 +361,9 @@ node-pilot/
 │   └── src/
 │       ├── api/              # API 调用封装
 │       ├── components/       # Vue 组件 (含 Pagination.vue)
-│       ├── views/            # 页面视图
-│       ├── stores/           # Pinia 状态管理
+│       ├── router/           # Vue Router + 路由守卫
+│       ├── stores/           # Pinia 状态管理 (含 auth store)
+│       ├── views/            # 页面视图 (含 Login, UserList, Profile)
 │       └── types/            # TypeScript 类型
 ├── docs/
 │   ├── plan/                 # 任务计划文档
@@ -326,6 +379,8 @@ node-pilot/
 | `NODE_PILOT_DB`     | `./data/servers.db` | 数据库路径           |
 | `NODE_PILOT_LISTEN` | `:8080`             | 监听地址            |
 | `NODE_PILOT_KEY`    | (自动生成)              | AES 加密密钥 (32字节) |
+| `JWT_SECRET`        | (内置默认)              | JWT 签名密钥 (生产环境必须设置) |
+| `ROOT_PASSWORD`     | `root`              | Root 用户初始密码 (首次部署设置) |
 
 ### 运行测试
 
@@ -341,21 +396,38 @@ npm test
 
 ## 🔒 安全说明
 
-### 密码存储
+### 认证机制
 
-所有密码使用 AES-256-GCM 加密后存储：
+系统采用 JWT (JSON Web Token) 进行身份认证：
+
+- **Access Token** - 有效期 24 小时，用于 API 访问认证
+- **Refresh Token** - 有效期 7 天，用于自动续期
+- **密码存储** - 用户密码使用 bcrypt 哈希存储
+- **敏感信息** - SSH 密码使用 AES-256-GCM 加密存储
 
 ```go
-// 32字节密钥用于 AES-256
-key := []byte("your-32-byte-encryption-key")
+// JWT Claims 结构
+type Claims struct {
+    UserID   int64  `json:"user_id"`
+    Username string `json:"username"`
+    Role     string `json:"role"` // ROLE_ADMIN or ROLE_USER
+}
 ```
 
 ### 最佳实践
 
-1. **数据库权限** - 设置数据库文件权限为 `600`
-2. **网络隔离** - 仅在内网环境使用
-3. **SSH 密钥** - 生产环境建议使用 SSH 密钥认证替代密码
-4. **加密密钥** - 生产环境使用随机生成的强密钥
+1. **JWT Secret** - 生产环境必须设置 `JWT_SECRET` 环境变量
+2. **Root 密码** - 首次部署后立即修改 root 默认密码
+3. **数据库权限** - 设置数据库文件权限为 `600`
+4. **网络隔离** - 仅在内网环境使用
+5. **SSH 密钥** - 生产环境建议使用 SSH 密钥认证替代密码
+6. **加密密钥** - 生产环境使用随机生成的强密钥
+
+### 默认账户
+
+| 用户名 | 密码 | 角色 |
+|-------|------|------|
+| root  | root | ROLE_ADMIN |
 
 ## 🤝 贡献指南
 
@@ -393,6 +465,7 @@ MIT 许可证 - 详见 [LICENSE](./LICENSE) 文件。
 ## 🙏 致谢
 
 - [gin-gonic/gin](https://github.com/gin-gonic/gin) - 高性能 HTTP Web 框架
+- [golang-jwt/jwt](https://github.com/golang-jwt/jwt) - JWT 实现
 - [golang.org/x/crypto](https://pkg.go.dev/golang.org/x/crypto) - SSH 和加密库
 - [vuejs/core](https://github.com/vuejs/core) - 渐进式 JavaScript 框架
 

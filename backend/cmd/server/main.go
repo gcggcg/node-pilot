@@ -22,6 +22,7 @@ func main() {
 	listen := flag.String("listen", ":8080", "Listen address")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 	logFile := flag.String("log", "", "Log file path (default: stdout)")
+	filesDir := flag.String("files", "", "File storage directory (default: <db_dir>/files)")
 	flag.Parse()
 
 	// Initialize logger
@@ -39,6 +40,11 @@ func main() {
 		log.Fatalf("Failed to create data directory: %v", err)
 	}
 
+	// 如果未指定files目录，则使用db所在目录的files子目录
+	if *filesDir == "" {
+		*filesDir = filepath.Join(dbDir, "files")
+	}
+
 	cfg := config.Config{
 		DBPath: *dbPath,
 		Listen: *listen,
@@ -50,6 +56,7 @@ func main() {
 	logger.Info("==========================================")
 	logger.Info("Debug模式: %v", *debug)
 	logger.Info("数据库: %s", *dbPath)
+	logger.Info("文件存储: %s", *filesDir)
 	logger.Info("监听地址: %s", *listen)
 
 	db, err := repository.NewDB(cfg.DBPath)
@@ -71,8 +78,8 @@ func main() {
 	authHandler := handler.NewAuthHandler(repo, jwtSecret)
 	userHandler := handler.NewUserHandler(repo, jwtSecret)
 
-	fileUploadService := service.NewFileUploadService(repo, sshPool, "./data/files")
-	fileUploadHandler := handler.NewFileUploadHandler(repo, fileUploadService, "./data/files")
+	fileUploadService := service.NewFileUploadService(repo, sshPool, *filesDir)
+	fileUploadHandler := handler.NewFileUploadHandler(repo, fileUploadService, *filesDir)
 
 	if *debug {
 		gin.SetMode(gin.DebugMode)

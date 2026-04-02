@@ -89,7 +89,7 @@ echo "启动服务..."
 cd "$BACKEND_DIR"
 
 # 根据是否开启debug模式来设置参数
-CMD="$BINARY --db $DATA_DIR/servers.db --listen :${FRONTEND_PORT} --log $LOG_FILE"
+CMD="$BINARY --db $DATA_DIR/servers.db --files $DATA_DIR/files --listen :${FRONTEND_PORT} --log $LOG_FILE"
 
 if [ "$DEBUG_MODE" = "debug" ]; then
     CMD="$CMD --debug"

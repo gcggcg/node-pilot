@@ -5,11 +5,12 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21%2B-blue)](https://golang.org/)
 [![Vue Version](https://img.shields.io/badge/Vue-3.4%2B-green)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/your-username/node-pilot?style=social)](https://github.com/your-username/node-pilot)
+[![Stars](https://img.shields.io/github/stars/gcggcg/node-pilot?style=social)](https://github.com/gcggcg/node-pilot)
 
 [English](./README.md) | 中文
 
 <!-- TOC -->
+
 - [特性](#特性)
 - [快速开始](#快速开始)
 - [架构设计](#架构设计)
@@ -25,24 +26,29 @@
 ## ✨ 特性
 
 ### 🎯 核心能力
+
 - **批量服务器管理** - 集中管理多台服务器的连接信息
 - **批量脚本执行** - 同时在多台服务器上执行相同的脚本
 - **实时输出回显** - 类似 `kubectl logs -f` 的实时日志查看
 - **连接状态监控** - 一键测试服务器连接状态（在线/离线/未知）
 
 ### 🔒 安全特性
+
 - **AES-256-GCM 加密** - 密码安全存储，不在客户端暴露
 - **会话隔离** - 每个任务独立执行，互不干扰
 
 ### 🚀 性能优势
+
 - **单端口部署** - 前端嵌入二进制，无需 Nginx/Apache
 - **批量并发执行** - 支持 10 台服务器同时执行（可配置批次大小）
 - **WebSocket 实时推送** - 无需轮询，即时获取执行结果
 
 ### 💻 用户体验
+
 - **Web UI** - 简洁易用的管理界面
 - **一键启动** - 下载即运行，无需复杂配置
 - **跨平台** - 支持 Linux/macOS/Windows
+- **分页支持** - 服务器/脚本/任务列表支持分页浏览
 
 ## 📦 快速开始
 
@@ -50,11 +56,11 @@
 
 ```bash
 # Linux/macOS
-curl -fsSL https://github.com/your-username/node-pilot/releases/latest/download/node-pilot-linux-amd64 -o node-pilot
+curl -fsSL https://github.com/gcggcg/node-pilot/releases/latest/download/node-pilot-linux-amd64 -o node-pilot
 chmod +x node-pilot
 
 # Windows
-# 从 https://github.com/your-username/node-pilot/releases 下载
+# 从 https://github.com/gcggcg/node-pilot/releases 下载
 
 # 运行
 ./node-pilot --db ./data/servers.db --listen :8080
@@ -65,12 +71,13 @@ chmod +x node-pilot
 ### 源码构建
 
 **环境要求:**
+
 - Go 1.21+
 - Node.js 18+ (仅前端开发需要)
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-username/node-pilot.git
+git clone https://github.com/gcggcg/node-pilot.git
 cd node-pilot
 
 # 构建后端
@@ -102,7 +109,7 @@ chmod +x scripts/start.sh
 
 ```bash
 # 拉取镜像
-docker pull your-username/node-pilot:latest
+docker pull gcggcg/node-pilot:latest
 
 # 运行
 docker run -d -p 8080:8080 \
@@ -153,21 +160,21 @@ docker run -d -p 8080:8080 \
 
 ### 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 后端 | Go + Gin |
-| 前端 | Vue 3 + TypeScript + Vite |
-| 数据库 | SQLite (嵌入式) |
-| SSH | golang.org/x/crypto/ssh |
-| WebSocket | gorilla/websocket |
-| 密码加密 | AES-256-GCM |
+| 层级        | 技术                        |
+|-----------|---------------------------|
+| 后端        | Go + Gin                  |
+| 前端        | Vue 3 + TypeScript + Vite |
+| 数据库       | SQLite (嵌入式)              |
+| SSH       | golang.org/x/crypto/ssh   |
+| WebSocket | gorilla/websocket         |
+| 密码加密      | AES-256-GCM               |
 
 ## 💡 适用场景
 
-### 1. 批量脚本执行
+### 1. 微服务组件集群一键搭建
 
 ```bash
-# 创建部署脚本
+# 创建微服务部署脚本列表
 #!/bin/bash
 cd /opt/myapp
 git pull origin main
@@ -177,7 +184,7 @@ docker-compose up -d --build
 # 一键在所有服务器上执行该脚本
 ```
 
-### 2. OpenClust 集群搭建
+### 2. OpenClaw 小龙虾集群一键搭建
 
 ```bash
 #!/bin/bash
@@ -187,7 +194,7 @@ docker pull openclust/node:latest
 docker run -d --name master openclust/node --role=master
 ```
 
-### 3. AI 编程环境搭建
+### 3. AI 编程环境集群一键搭建
 
 ```bash
 #!/bin/bash
@@ -206,41 +213,63 @@ docker system prune -f
 journalctl --vacuum-time=7d
 ```
 
+### 5. 定制化批量服务处理
+
 ## 🌐 API 参考
 
 ### 服务器管理
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/servers` | 获取服务器列表 |
-| GET | `/api/servers/:id` | 获取服务器详情 |
-| POST | `/api/servers` | 创建服务器 |
-| PUT | `/api/servers/:id` | 更新服务器 |
-| DELETE | `/api/servers/:id` | 删除服务器 |
-| POST | `/api/servers/:id/test` | 测试连接 |
-| POST | `/api/servers/batch-delete` | 批量删除 |
+| 方法     | 端点                          | 说明      | 分页支持 |
+|--------|-----------------------------|---------|------|
+| GET    | `/api/servers`              | 获取服务器列表 | ✅    |
+| GET    | `/api/servers/:id`          | 获取服务器详情 |      |
+| POST   | `/api/servers`              | 创建服务器   |      |
+| PUT    | `/api/servers/:id`          | 更新服务器   |      |
+| DELETE | `/api/servers/:id`          | 删除服务器   |      |
+| POST   | `/api/servers/:id/test`     | 测试连接    |      |
+| POST   | `/api/servers/batch-delete` | 批量删除    |      |
 
 ### 脚本管理
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/scripts` | 获取脚本列表 |
-| GET | `/api/scripts/:id` | 获取脚本详情 |
-| POST | `/api/scripts` | 创建脚本 |
-| PUT | `/api/scripts/:id` | 更新脚本 |
-| DELETE | `/api/scripts/:id` | 删除脚本 |
-| POST | `/api/scripts/batch-delete` | 批量删除 |
+| 方法     | 端点                          | 说明     | 分页支持 |
+|--------|-----------------------------|--------|------|
+| GET    | `/api/scripts`              | 获取脚本列表 | ✅    |
+| GET    | `/api/scripts/:id`          | 获取脚本详情 |      |
+| POST   | `/api/scripts`              | 创建脚本   |      |
+| PUT    | `/api/scripts/:id`          | 更新脚本   |      |
+| DELETE | `/api/scripts/:id`          | 删除脚本   |      |
+| POST   | `/api/scripts/batch-delete` | 批量删除   |      |
 
 ### 任务管理
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/tasks` | 获取任务列表 |
-| GET | `/api/tasks/:id` | 获取任务详情 |
-| POST | `/api/tasks` | 创建并执行任务 |
-| DELETE | `/api/tasks/:id` | 取消任务 |
-| POST | `/api/tasks/batch-delete` | 批量删除 |
-| GET | `/api/tasks/:id/output` | SSE 实时输出流 |
+| 方法     | 端点                        | 说明        | 分页支持 |
+|--------|---------------------------|-----------|------|
+| GET    | `/api/tasks`              | 获取任务列表    | ✅    |
+| GET    | `/api/tasks/:id`          | 获取任务详情    |      |
+| POST   | `/api/tasks`              | 创建并执行任务   |      |
+| DELETE | `/api/tasks/:id`          | 取消任务      |      |
+| POST   | `/api/tasks/batch-delete` | 批量删除      |      |
+| GET    | `/api/tasks/:id/output`   | SSE 实时输出流 |      |
+
+### 分页参数
+
+列表接口支持分页查询，参数通过 URL query 传递：
+
+| 参数     | 类型    | 默认值 | 说明    |
+|---------|-------|------|-------|
+| `page`    | int   | 1    | 页码    |
+| `pageSize` | int   | 10   | 每页条数 |
+
+**分页响应格式：**
+
+```json
+{
+  "data": [...],
+  "total": 100,
+  "page": 1,
+  "pageSize": 10
+}
+```
 
 ### WebSocket
 
@@ -249,6 +278,7 @@ ws://localhost:8080/ws?task_id=123
 ```
 
 **消息类型:**
+
 - `task_start` - 任务开始执行
 - `server_start` - 开始在服务器上执行
 - `output` - 实时输出
@@ -278,21 +308,24 @@ node-pilot/
 ├── frontend/
 │   └── src/
 │       ├── api/              # API 调用封装
-│       ├── components/       # Vue 组件
+│       ├── components/       # Vue 组件 (含 Pagination.vue)
 │       ├── views/            # 页面视图
 │       ├── stores/           # Pinia 状态管理
 │       └── types/            # TypeScript 类型
+├── docs/
+│   ├── plan/                 # 任务计划文档
+│   └── review/               # 代码审查报告
 └── scripts/
     └── start.sh             # 启动脚本
 ```
 
 ### 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `NODE_PILOT_DB` | `./data/servers.db` | 数据库路径 |
-| `NODE_PILOT_LISTEN` | `:8080` | 监听地址 |
-| `NODE_PILOT_KEY` | (自动生成) | AES 加密密钥 (32字节) |
+| 变量                  | 默认值                 | 说明              |
+|---------------------|---------------------|-----------------|
+| `NODE_PILOT_DB`     | `./data/servers.db` | 数据库路径           |
+| `NODE_PILOT_LISTEN` | `:8080`             | 监听地址            |
+| `NODE_PILOT_KEY`    | (自动生成)              | AES 加密密钥 (32字节) |
 
 ### 运行测试
 
@@ -332,7 +365,7 @@ key := []byte("your-32-byte-encryption-key")
 
 ```bash
 # Fork 并克隆仓库
-git clone https://github.com/your-username/node-pilot.git
+git clone https://github.com/gcggcg/node-pilot.git
 
 # 创建功能分支
 git checkout -b feature/your-feature-name
@@ -366,5 +399,5 @@ MIT 许可证 - 详见 [LICENSE](./LICENSE) 文件。
 ---
 
 <p align="center">
-  使用 ❤️ 开发 | <a href="https://github.com/your-username">Your Name</a>
+  使用 ❤️ 开发 | <a href="https://github.com/gcggcg">光之翼</a>
 </p>

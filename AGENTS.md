@@ -19,14 +19,14 @@ node-pilot/
 │   │   ├── handler/              # HTTP handlers (Gin)
 │   │   ├── logger/              # Logging (DEBUG/INFO/WARN/ERROR)
 │   │   ├── model/               # Data models
-│   │   ├── repository/          # Database access (SQLite)
-│   │   ├── service/             # Business logic (SSH, TaskExecutor)
-│   │   └── websocket/           # WebSocket hub
+│   │   ├── repository/           # Database access (SQLite)
+│   │   ├── service/              # Business logic (SSH, TaskExecutor)
+│   │   └── websocket/            # WebSocket hub
 │   └── web/                     # Embedded frontend assets
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                 # Axios API wrappers
-│   │   ├── components/          # Vue components
+│   │   ├── components/          # Vue components (Pagination.vue)
 │   │   ├── router/              # Vue Router (7 routes)
 │   │   ├── stores/              # Pinia stores (server, script, task)
 │   │   ├── types/               # TypeScript interfaces
@@ -35,6 +35,9 @@ node-pilot/
 │   │   └── main.ts
 │   ├── dist/                    # Built frontend
 │   └── node_modules/
+├── docs/
+│   ├── plan/                   # Task plan documents
+│   └── review/                  # Code review reports
 └── data/                        # SQLite database
 ```
 
@@ -234,30 +237,33 @@ const servers = ref<any[]>([])
 **Pinia Stores**
 - Use composition API style (`defineStore` with `() => { ... }`)
 - Return reactive state and methods
+- **Important**: When using pagination, ensure `loadData()` uses `async/await` and sync local pagination state after mutations
 
 ```typescript
 export const useServerStore = defineStore('server', () => {
     const servers = ref<Server[]>([])
     const loading = ref(false)
+    const pagination = ref({ page: 1, pageSize: 10, total: 0 })
 
-    async function fetchServers() {
+    async function fetchServers(page = 1, pageSize = 10) {
         loading.value = true
         try {
-            const res = await serverApi.list()
+            const res = await serverApi.list({ page, pageSize })
             servers.value = res.data
+            pagination.value = { page: res.page, pageSize: res.pageSize, total: res.total }
         } finally {
             loading.value = false
         }
     }
 
-    return { servers, loading, fetchServers }
+    return { servers, loading, pagination, fetchServers }
 })
 ```
 
 **Naming Conventions**
-- Components: PascalCase (e.g., `ServerList.vue`, `OutputPanel.vue`)
+- Components: PascalCase (e.g., `ServerList.vue`, `OutputPanel.vue`, `Pagination.vue`)
 - Composables/stores: camelCase with use prefix (e.g., `useServerStore`)
-- Types/Interfaces: PascalCase (e.g., `Server`, `TaskForm`)
+- Types/Interfaces: PascalCase (e.g., `Server`, `TaskForm`, `PaginatedResponse`)
 - CSS classes: kebab-case with BEM-style for components
 
 ---
@@ -307,6 +313,19 @@ interface WSMessage {
     exit_code?: number
     timestamp: string
 }
+
+// Pagination interfaces
+interface PaginatedResponse<T> {
+    data: T[]
+    total: number
+    page: number
+    pageSize: number
+}
+
+interface PaginationParams {
+    page?: number
+    pageSize?: number
+}
 ```
 
 ---
@@ -320,6 +339,34 @@ func (h *Handler) HandlerName(c *gin.Context) {
     // 2. Call repository/service
     // 3. Return response or error
     // 4. Always return on error (no fallthrough)
+}
+```
+
+### Backend Pagination Handler Pattern
+```go
+func (h *Handler) ListWithPagination(c *gin.Context) {
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+    if page < 1 {
+        page = 1
+    }
+    if pageSize < 1 || pageSize > 100 {
+        pageSize = 10
+    }
+
+    items, total, err := h.repo.ListWithPagination(page, pageSize)
+    if err != nil {
+        c.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(200, gin.H{
+        "data":     items,
+        "total":    total,
+        "page":     page,
+        "pageSize": pageSize,
+    })
 }
 ```
 
@@ -337,6 +384,31 @@ async function fetchData() {
         loading.value = false
     }
 }
+```
+
+### Frontend Pagination Pattern
+```typescript
+// In view component
+const pagination = ref({
+    page: Number(route.query.page) || 1,
+    pageSize: Number(route.query.pageSize) || 10,
+    total: 0
+})
+
+async function loadData() {
+    await store.fetchTasks(pagination.value.page, pagination.value.pageSize)
+    pagination.value.total = store.pagination.total  // Sync after async!
+}
+
+function handlePageChange(payload: { page: number; pageSize: number }) {
+    pagination.value.page = payload.page
+    pagination.value.pageSize = payload.pageSize
+    router.replace({ query: { page: payload.page, pageSize: payload.pageSize } })
+    store.fetchTasks(payload.page, payload.pageSize)
+}
+
+// After mutations (create/delete), always sync:
+pagination.value.total = store.pagination.total
 ```
 
 ### WebSocket Usage
@@ -375,19 +447,33 @@ function connectWebSocket(taskId: number) {
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/servers` | List servers |
-| POST | `/api/servers` | Create server |
-| PUT | `/api/servers/:id` | Update server |
-| DELETE | `/api/servers/:id` | Delete server |
-| POST | `/api/servers/:id/test` | Test SSH connection |
-| GET | `/api/scripts` | List scripts |
-| POST | `/api/scripts` | Create script |
-| GET | `/api/tasks` | List tasks |
-| POST | `/api/tasks` | Create and execute task |
-| DELETE | `/api/tasks/:id` | Cancel task |
-| GET | `/ws?task_id=N` | WebSocket for real-time output |
+| Method | Endpoint | Description | Pagination |
+|--------|----------|-------------|------------|
+| GET | `/api/servers` | List servers | ✅ page, pageSize |
+| POST | `/api/servers` | Create server | |
+| PUT | `/api/servers/:id` | Update server | |
+| DELETE | `/api/servers/:id` | Delete server | |
+| POST | `/api/servers/:id/test` | Test SSH connection | |
+| GET | `/api/scripts` | List scripts | ✅ page, pageSize |
+| POST | `/api/scripts` | Create script | |
+| PUT | `/api/scripts/:id` | Update script | |
+| DELETE | `/api/scripts/:id` | Delete script | |
+| GET | `/api/tasks` | List tasks | ✅ page, pageSize |
+| POST | `/api/tasks` | Create and execute task | |
+| DELETE | `/api/tasks/:id` | Cancel task | |
+| GET | `/ws?task_id=N` | WebSocket for real-time output | |
+
+### Pagination Response Format
+
+All list endpoints support pagination and return:
+```json
+{
+  "data": [...],
+  "total": 100,
+  "page": 1,
+  "pageSize": 10
+}
+```
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence

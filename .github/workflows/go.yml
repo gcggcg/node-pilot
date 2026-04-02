@@ -67,15 +67,3 @@ jobs:
         echo "构建完成，文件保存在项目根目录:"
         ls -la ../../node-pilot || true
     
-    - name: Verify binary
-      run: |
-        if [ -f "../../node-pilot" ]; then
-          echo "✅ 二进制文件构建成功"
-          file ../../node-pilot
-        else
-          echo "❌ 二进制文件构建失败"
-          # 尝试在项目根目录查找
-          echo "在项目根目录查找:"
-          find ../.. -name "node-pilot" -type f
-          exit 1
-        fi

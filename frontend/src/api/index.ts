@@ -130,11 +130,21 @@ export const fileUploadApi = {
     },
     
     create: (data: FileUploadForm) => {
-        return api.post('/v1/file-uploads', data);
+        return api.post('/v1/file-uploads', {
+            name: data.name,
+            local_path: data.localPath,
+            remote_path: data.remotePath,
+            server_ids: data.serverIds
+        });
     },
     
     update: (id: number, data: FileUploadForm) => {
-        return api.put(`/v1/file-uploads/${id}`, data);
+        return api.put(`/v1/file-uploads/${id}`, {
+            name: data.name,
+            local_path: data.localPath,
+            remote_path: data.remotePath,
+            server_ids: data.serverIds
+        });
     },
     
     execute: (id: number) => {

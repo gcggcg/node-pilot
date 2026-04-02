@@ -189,8 +189,8 @@ func (h *FileUploadHandler) UpdateFileUpload(c *gin.Context) {
 
 	// 更新服务器关联
 	if len(input.ServerIDs) > 0 {
-		// 删除旧的关联
-		if err := h.repo.DeleteFileUploads([]int64{id}); err != nil {
+		// 删除旧的关联（只删file_upload_servers，不删file_uploads主记录）
+		if err := h.repo.DeleteFileUploadServers(id); err != nil {
 			logger.Warn("Failed to delete old file upload servers: %v", err)
 		}
 		// 创建新的关联
@@ -261,7 +261,7 @@ func (h *FileUploadHandler) GetFileUploadResults(c *gin.Context) {
 		return
 	}
 
-	servers, err := h.repo.GetFileUploadServers(id)
+	fileUploadServers, err := h.repo.GetFileUploadServers(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -275,8 +275,8 @@ func (h *FileUploadHandler) GetFileUploadResults(c *gin.Context) {
 		RemoteFullPath string `json:"remote_full_path,omitempty"`
 	}
 
-	results := make([]*ServerResult, 0, len(servers))
-	for _, s := range servers {
+	results := make([]*ServerResult, 0, len(fileUploadServers))
+	for _, s := range fileUploadServers {
 		server, _ := h.repo.GetServer(s.ServerID)
 		serverName := ""
 		if server != nil {
@@ -291,8 +291,40 @@ func (h *FileUploadHandler) GetFileUploadResults(c *gin.Context) {
 		})
 	}
 
+	// 构建带有完整服务器信息的响应（用于编辑模式）
+	type FileUploadWithServers struct {
+		ID         int64           `json:"id"`
+		Name       string          `json:"name"`
+		LocalPath  string          `json:"local_path"`
+		RemotePath string          `json:"remote_path"`
+		Status     string          `json:"status"`
+		CreatedAt  time.Time       `json:"created_at"`
+		UpdatedAt  time.Time       `json:"updated_at"`
+		Servers    []*model.Server `json:"servers"` // 完整服务器信息，用于编辑模式
+	}
+
+	// 获取完整的服务器对象列表
+	var servers []*model.Server
+	for _, fus := range fileUploadServers {
+		server, err := h.repo.GetServer(fus.ServerID)
+		if err == nil {
+			servers = append(servers, server)
+		}
+	}
+
+	fuWithServers := &FileUploadWithServers{
+		ID:         fu.ID,
+		Name:       fu.Name,
+		LocalPath:  fu.LocalPath,
+		RemotePath: fu.RemotePath,
+		Status:     fu.Status,
+		CreatedAt:  fu.CreatedAt,
+		UpdatedAt:  fu.UpdatedAt,
+		Servers:    servers,
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"file_upload": fu,
+		"file_upload": fuWithServers,
 		"results":     results,
 	})
 }

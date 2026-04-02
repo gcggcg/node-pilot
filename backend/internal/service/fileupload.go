@@ -1,6 +1,9 @@
 package service
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +20,7 @@ type FileUploadService struct {
 	repo    *repository.Repository
 	sshPool *SSHPool
 	baseDir string
+	encKey  []byte
 }
 
 func NewFileUploadService(repo *repository.Repository, sshPool *SSHPool, baseDir string) *FileUploadService {
@@ -24,7 +28,38 @@ func NewFileUploadService(repo *repository.Repository, sshPool *SSHPool, baseDir
 		repo:    repo,
 		sshPool: sshPool,
 		baseDir: baseDir,
+		encKey:  []byte("12345678901234567890123456789012"),
 	}
+}
+
+func (s *FileUploadService) decrypt(encrypted string) (string, error) {
+	if encrypted == "" {
+		return "", nil
+	}
+	ciphertext, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(s.encKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := gcm.NonceSize()
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
 }
 
 func (s *FileUploadService) UploadFile(serverID int64, localFilePath, remotePath string) (string, error) {
@@ -120,7 +155,16 @@ func (s *FileUploadService) ExecuteUpload(fileUploadID int64) error {
 				return
 			}
 
-			client, err := s.sshPool.GetClient(server.ID, server.Host, server.Port, server.Username, "")
+			password, err := s.decrypt(server.PasswordEncrypted)
+			if err != nil {
+				s.repo.UpdateFileUploadServerStatus(srv.ID, "failed", fmt.Sprintf("密码解密失败: %v", err))
+				mu.Lock()
+				allSuccess = false
+				mu.Unlock()
+				return
+			}
+
+			client, err := s.sshPool.GetClient(server.ID, server.Host, server.Port, server.Username, password)
 			if err != nil {
 				s.repo.UpdateFileUploadServerStatus(srv.ID, "failed", fmt.Sprintf("SSH连接失败: %v", err))
 				mu.Lock()

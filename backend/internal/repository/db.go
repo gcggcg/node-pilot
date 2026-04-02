@@ -775,3 +775,8 @@ func (r *Repository) GetFileUploadServerByID(id int64) (*model.FileUploadServer,
 	}
 	return s, nil
 }
+
+func (r *Repository) DeleteFileUploadServers(fileUploadID int64) error {
+	_, err := r.db.Exec(`DELETE FROM file_upload_servers WHERE file_upload_id = ?`, fileUploadID)
+	return err
+}

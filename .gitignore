@@ -4,3 +4,7 @@ go.sum
 logs/
 frontend/node_modules/
 *.log
+*.db
+.claude/
+CLAUDE.md
+AGENTS.md

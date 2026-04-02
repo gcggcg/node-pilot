@@ -1,7 +1,53 @@
 <template>
     <div class="login-container">
         <div class="bg-animation">
-            <div class="particle" v-for="i in 50" :key="i" :style="particleStyle(i)"></div>
+            <!-- Animated grid background -->
+            <div class="grid-bg"></div>
+            <!-- Glowing orbs -->
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
+            <!-- Circuit lines -->
+            <svg class="circuit-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="circuitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.6" />
+                        <stop offset="100%" style="stop-color:#667eea;stop-opacity:0.2" />
+                    </linearGradient>
+                </defs>
+                <g class="circuit-lines">
+                    <line x1="0" y1="20" x2="40" y2="20" />
+                    <line x1="40" y1="20" x2="40" y2="50" />
+                    <line x1="40" y1="50" x2="70" y2="50" />
+                    <line x1="70" y1="50" x2="70" y2="80" />
+                    <line x1="70" y1="80" x2="100" y2="80" />
+                    <circle cx="40" cy="20" r="2" fill="#00d4ff" />
+                    <circle cx="40" cy="50" r="2" fill="#00d4ff" />
+                    <circle cx="70" cy="50" r="2" fill="#667eea" />
+                    <circle cx="70" cy="80" r="2" fill="#667eea" />
+                </g>
+                <g class="circuit-lines circuit-lines-2">
+                    <line x1="100" y1="10" x2="60" y2="10" />
+                    <line x1="60" y1="10" x2="60" y2="40" />
+                    <line x1="60" y1="40" x2="30" y2="40" />
+                    <line x1="30" y1="40" x2="30" y2="70" />
+                    <circle cx="60" cy="10" r="2" fill="#764ba2" />
+                    <circle cx="60" cy="40" r="2" fill="#764ba2" />
+                    <circle cx="30" cy="40" r="2" fill="#00d4ff" />
+                </g>
+                <g class="circuit-lines circuit-lines-3">
+                    <line x1="0" y1="60" x2="25" y2="60" />
+                    <line x1="25" y1="60" x2="25" y2="85" />
+                    <line x1="25" y1="85" x2="55" y2="85" />
+                    <line x1="55" y1="85" x2="55" y2="95" />
+                    <circle cx="25" cy="60" r="2" fill="#00d4ff" />
+                    <circle cx="55" cy="85" r="2" fill="#667eea" />
+                </g>
+            </svg>
+            <!-- Data particles -->
+            <div class="particle particle-cyan" v-for="i in 15" :key="'c'+i" :style="particleStyle(i, 'cyan')"></div>
+            <div class="particle particle-purple" v-for="i in 15" :key="'p'+i" :style="particleStyle(i, 'purple')"></div>
+            <div class="particle particle-blue" v-for="i in 10" :key="'b'+i" :style="particleStyle(i, 'blue')"></div>
         </div>
         
         <div class="login-panel">
@@ -75,11 +121,19 @@ const showPassword = ref(false);
 const loading = ref(false);
 const error = ref('');
 
-function particleStyle(_i: number) {
+function particleStyle(_i: number, color: string) {
+    const colors: Record<string, string> = {
+        cyan: '#00d4ff',
+        purple: '#667eea',
+        blue: '#764ba2'
+    };
     return {
         left: `${Math.random() * 100}%`,
-        animationDelay: `${Math.random() * 10}s`,
-        animationDuration: `${10 + Math.random() * 10}s`,
+        top: `${Math.random() * 100}%`,
+        background: colors[color] || colors.cyan,
+        boxShadow: `0 0 10px ${colors[color]}, 0 0 20px ${colors[color]}`,
+        animationDelay: `${Math.random() * 8}s`,
+        animationDuration: `${8 + Math.random() * 12}s`,
     };
 }
 
@@ -112,7 +166,7 @@ async function handleLogin() {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+    background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 40%, #0d1b2a 70%, #1a1a2e 100%);
     position: relative;
     overflow: hidden;
 }
@@ -123,35 +177,155 @@ async function handleLogin() {
     overflow: hidden;
 }
 
-.particle {
+/* Animated grid background */
+.grid-bg {
     position: absolute;
-    width: 2px;
-    height: 2px;
-    background: rgba(102, 126, 234, 0.6);
-    border-radius: 50%;
-    animation: float linear infinite;
-    box-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridMove 20s linear infinite;
 }
 
-@keyframes float {
-    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+@keyframes gridMove {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
+}
+
+/* Glowing orbs */
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+    animation: orbFloat 8s ease-in-out infinite;
+}
+
+.orb-1 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(0, 212, 255, 0.3) 0%, transparent 70%);
+    top: -100px;
+    right: -100px;
+    animation-delay: 0s;
+}
+
+.orb-2 {
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%);
+    bottom: -80px;
+    left: -80px;
+    animation-delay: -3s;
+}
+
+.orb-3 {
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(118, 75, 162, 0.25) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: -5s;
+}
+
+@keyframes orbFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -30px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+.orb-3 {
+    animation-name: orbFloatCenter;
+}
+
+@keyframes orbFloatCenter {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* Circuit SVG */
+.circuit-svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0.6;
+}
+
+.circuit-lines {
+    stroke: url(#circuitGrad);
+    stroke-width: 0.3;
+    fill: none;
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    animation: circuitDraw 8s ease-in-out infinite;
+}
+
+.circuit-lines-2 {
+    animation-delay: -2s;
+    stroke-dashoffset: 200;
+}
+
+.circuit-lines-3 {
+    animation-delay: -4s;
+    stroke-dashoffset: 200;
+}
+
+@keyframes circuitDraw {
+    0% { stroke-dashoffset: 200; opacity: 0; }
     10% { opacity: 1; }
     90% { opacity: 1; }
-    100% { transform: translateY(-100vh) scale(1); opacity: 0; }
+    100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* Data particles */
+.particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    animation: dataStream linear infinite;
+}
+
+.particle-cyan {
+    box-shadow: 0 0 6px #00d4ff, 0 0 12px #00d4ff;
+}
+
+.particle-purple {
+    box-shadow: 0 0 6px #667eea, 0 0 12px #667eea;
+}
+
+.particle-blue {
+    box-shadow: 0 0 6px #764ba2, 0 0 12px #764ba2;
+}
+
+@keyframes dataStream {
+    0% { 
+        transform: translateY(100vh) scale(0);
+        opacity: 0;
+    }
+    10% { opacity: 1; transform: scale(1); }
+    90% { opacity: 0.8; }
+    100% { 
+        transform: translateY(-20vh) scale(0.5);
+        opacity: 0;
+    }
 }
 
 .login-panel {
-    background: rgba(20, 20, 40, 0.6);
+    background: rgba(13, 27, 42, 0.75);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(102, 126, 234, 0.3);
+    border: 1px solid rgba(0, 212, 255, 0.2);
     border-radius: 20px;
     padding: 48px;
     width: 100%;
     max-width: 420px;
     position: relative;
     box-shadow: 
-        0 0 40px rgba(102, 126, 234, 0.2),
-        inset 0 0 60px rgba(102, 126, 234, 0.05);
+        0 0 60px rgba(0, 212, 255, 0.15),
+        0 0 100px rgba(102, 126, 234, 0.1),
+        inset 0 0 60px rgba(0, 212, 255, 0.03);
 }
 
 .login-panel::before {
@@ -160,7 +334,7 @@ async function handleLogin() {
     inset: -1px;
     border-radius: 20px;
     padding: 1px;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.5), transparent, rgba(118, 75, 162, 0.5));
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.5), rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.5));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -175,11 +349,11 @@ async function handleLogin() {
 .logo-text {
     font-size: 2.5rem;
     font-weight: bold;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #00d4ff 0%, #667eea 50%, #764ba2 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+    text-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
     margin: 0;
 }
 
@@ -202,7 +376,7 @@ async function handleLogin() {
 .input-icon {
     position: absolute;
     left: 16px;
-    color: rgba(102, 126, 234, 0.8);
+    color: rgba(0, 212, 255, 0.8);
     font-family: monospace;
     font-size: 0.9rem;
 }
@@ -210,8 +384,8 @@ async function handleLogin() {
 .input-wrapper input {
     width: 100%;
     padding: 16px 16px 16px 48px;
-    background: rgba(10, 10, 30, 0.8);
-    border: 2px solid rgba(102, 126, 234, 0.3);
+    background: rgba(13, 27, 42, 0.9);
+    border: 2px solid rgba(0, 212, 255, 0.2);
     border-radius: 12px;
     color: #fff;
     font-size: 1rem;
@@ -220,8 +394,8 @@ async function handleLogin() {
 
 .input-wrapper input:focus {
     outline: none;
-    border-color: rgba(102, 126, 234, 0.8);
-    box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+    border-color: rgba(0, 212, 255, 0.6);
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.25), inset 0 0 15px rgba(0, 212, 255, 0.05);
 }
 
 .input-wrapper input::placeholder {
@@ -244,8 +418,8 @@ async function handleLogin() {
 }
 
 @keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
-    50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.6); }
+    0%, 100% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(0, 212, 255, 0.6); }
 }
 
 .toggle-password {
@@ -272,7 +446,7 @@ async function handleLogin() {
 .login-button {
     width: 100%;
     padding: 16px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #00d4ff 0%, #667eea 50%, #764ba2 100%);
     border: none;
     border-radius: 12px;
     color: #fff;
@@ -282,11 +456,12 @@ async function handleLogin() {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
 }
 
 .login-button:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 35px rgba(0, 212, 255, 0.4), 0 0 60px rgba(102, 126, 234, 0.2);
 }
 
 .login-button:disabled {
@@ -327,14 +502,15 @@ async function handleLogin() {
     gap: 8px;
     margin-top: 32px;
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(0, 212, 255, 0.5);
 }
 
 .status-indicator {
     width: 8px;
     height: 8px;
-    background: #4ade80;
+    background: #00d4ff;
     border-radius: 50%;
+    box-shadow: 0 0 10px #00d4ff;
     animation: pulse 2s infinite;
 }
 

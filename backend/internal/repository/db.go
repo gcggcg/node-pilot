@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"node-pilot/internal/model"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -28,6 +30,13 @@ func NewDB(path string) (*sql.DB, error) {
 	if err := migrateSchema(db); err != nil {
 		return nil, err
 	}
+
+	// Initialize root user
+	repo := &Repository{db: db}
+	if err := repo.InitRootUser(); err != nil {
+		return nil, err
+	}
+
 	return db, nil
 }
 
@@ -82,6 +91,17 @@ func initSchema(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_task_servers_task ON task_servers(task_id);
 	CREATE INDEX IF NOT EXISTS idx_task_servers_server ON task_servers(server_id);
 	CREATE INDEX IF NOT EXISTS idx_task_servers_status ON task_servers(status);
+
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		password_hash TEXT NOT NULL,
+		email TEXT DEFAULT '',
+		phone TEXT DEFAULT '',
+		role TEXT DEFAULT 'ROLE_USER',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 	_, err := db.Exec(schema)
 	return err
@@ -98,6 +118,21 @@ func migrateSchema(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+
+	// Add users table migration (for existing databases without users table)
+	_, err = db.Exec(`ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''`)
+	if err != nil && err.Error() != "duplicate column name: email" {
+		// Table might not exist, ignore error
+	}
+	_, err = db.Exec(`ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''`)
+	if err != nil && err.Error() != "duplicate column name: phone" {
+		// Table might not exist, ignore error
+	}
+	_, err = db.Exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'ROLE_USER'`)
+	if err != nil && err.Error() != "duplicate column name: role" {
+		// Table might not exist, ignore error
+	}
+
 	return nil
 }
 
@@ -440,4 +475,118 @@ func (r *Repository) DeleteTasks(ids []int64) error {
 	}
 
 	return tx.Commit()
+}
+
+// User Repository Methods
+
+func (r *Repository) CreateUser(user *model.User) (int64, error) {
+	result, err := r.db.Exec(
+		`INSERT INTO users (username, password_hash, email, phone, role) VALUES (?, ?, ?, ?, ?)`,
+		user.Username, user.PasswordHash, user.Email, user.Phone, user.Role)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func (r *Repository) GetUserByUsername(username string) (*model.User, error) {
+	user := &model.User{}
+	err := r.db.QueryRow(
+		`SELECT id, username, password_hash, email, phone, role, created_at, updated_at FROM users WHERE username = ?`,
+		username).
+		Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email, &user.Phone, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (r *Repository) GetUserByID(id int64) (*model.User, error) {
+	user := &model.User{}
+	err := r.db.QueryRow(
+		`SELECT id, username, password_hash, email, phone, role, created_at, updated_at FROM users WHERE id = ?`,
+		id).
+		Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email, &user.Phone, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (r *Repository) UpdateUser(user *model.User) error {
+	_, err := r.db.Exec(
+		`UPDATE users SET username = ?, password_hash = ?, email = ?, phone = ?, role = ?, updated_at = ? WHERE id = ?`,
+		user.Username, user.PasswordHash, user.Email, user.Phone, user.Role, time.Now(), user.ID)
+	return err
+}
+
+func (r *Repository) ListUsers(page, pageSize int, keyword string) ([]*model.User, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var total int64
+	err := r.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT id, username, password_hash, email, phone, role, created_at, updated_at FROM users`
+	var args []interface{}
+
+	if keyword != "" {
+		query += ` WHERE username LIKE ?`
+		keyword = "%" + keyword + "%"
+		args = append(args, keyword)
+	}
+
+	query += ` ORDER BY id DESC LIMIT ? OFFSET ?`
+	args = append(args, pageSize, offset)
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var users []*model.User
+	for rows.Next() {
+		user := &model.User{}
+		if err := rows.Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Email, &user.Phone, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		users = append(users, user)
+	}
+	return users, total, nil
+}
+
+func (r *Repository) DeleteUsers(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `DELETE FROM users WHERE id IN (` + strings.Join(placeholders, ",") + `)`
+	_, err := r.db.Exec(query, args...)
+	return err
+}
+
+func (r *Repository) InitRootUser() error {
+	var count int64
+	err := r.db.QueryRow("SELECT COUNT(*) FROM users WHERE username = 'root'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		// password: root, use bcrypt hash
+		hash, err := bcrypt.GenerateFromPassword([]byte("root"), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		_, err = r.db.Exec("INSERT INTO users (username, password_hash, role) VALUES ('root', ?, 'ROLE_ADMIN')", string(hash))
+		return err
+	}
+	return nil
 }

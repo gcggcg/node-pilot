@@ -1,6 +1,6 @@
 # NodePilot
 
-> 🚀 批量服务器管理平台 - 一键部署、批量操作、实时监控
+> 🚀 批量服务器管理平台 - 一键部署、批量操作、实时监控、以及各种定制化多联机服务批量处理业务
 
 [![Go Version](https://img.shields.io/badge/Go-1.21%2B-blue)](https://golang.org/)
 [![Vue Version](https://img.shields.io/badge/Vue-3.4%2B-green)](https://vuejs.org/)

@@ -59,3 +59,14 @@ type WSMessage struct {
 	Success    int       `json:"success,omitempty"`
 	Failed     int       `json:"failed,omitempty"`
 }
+
+type User struct {
+	ID           int64     `json:"id"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"-"` // bcrypt hash, never expose to client
+	Email        string    `json:"email"`
+	Phone        string    `json:"phone"`
+	Role         string    `json:"role"` // ROLE_ADMIN or ROLE_USER
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}

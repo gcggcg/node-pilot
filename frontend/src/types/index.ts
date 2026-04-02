@@ -88,3 +88,54 @@ export interface PaginationParams {
     page?: number;
     pageSize?: number;
 }
+
+export interface User {
+    id: number;
+    username: string;
+    email: string;
+    phone: string;
+    role: 'ROLE_ADMIN' | 'ROLE_USER';
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LoginRequest {
+    username: string;
+    password: string;
+}
+
+export interface LoginResponse {
+    access_token: string;
+    refresh_token: string;
+    token_type: string;
+    expires_in: number;
+}
+
+export interface RefreshRequest {
+    refresh_token: string;
+}
+
+export interface UpdateProfileRequest {
+    email?: string;
+    phone?: string;
+}
+
+export interface ChangePasswordRequest {
+    old_password: string;
+    new_password: string;
+}
+
+export interface CreateUserRequest {
+    username: string;
+    password: string;
+    email?: string;
+    phone?: string;
+    role: 'ROLE_ADMIN' | 'ROLE_USER';
+}
+
+export interface UserListResponse {
+    data: User[];
+    total: number;
+    page: number;
+    pageSize: number;
+}

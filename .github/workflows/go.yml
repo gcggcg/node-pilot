@@ -54,18 +54,4 @@ jobs:
       run: go list ./...
     
     - name: Build binary
-      run: |
-        mkdir -p bin
-        go build -o bin/server ./backend/cmd/server/main.go
-        echo "构建完成，二进制文件位置:"
-        ls -la bin/
-    
-    - name: Verify binary
-      run: |
-        if [ -f "bin/server" ]; then
-          echo "✅ 二进制文件构建成功"
-          file bin/server
-        else
-          echo "❌ 二进制文件构建失败"
-          exit 1
-        fi
+      run: go build -o node-pilot ./backend/cmd/server/main.go

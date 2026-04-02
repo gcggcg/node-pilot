@@ -1,6 +1,5 @@
 {
   "wait": [
-    "02-jwt-auth-middleware.md",
     "03-auth-handlers.md",
     "04-user-management-handlers.md",
     "05-frontend-auth-api-store.md",
@@ -8,8 +7,9 @@
     "07-router-guards.md",
     "08-user-management-ui.md"
   ],
-  "running": "02-jwt-auth-middleware.md",
+  "running": "03-auth-handlers.md",
   "succeed": [
-    "01-user-model-and-migration.md"
+    "01-user-model-and-migration.md",
+    "02-jwt-auth-middleware.md"
   ]
 }

@@ -9,6 +9,7 @@ import (
 	"node-pilot/internal/config"
 	"node-pilot/internal/handler"
 	"node-pilot/internal/logger"
+	"node-pilot/internal/middleware"
 	"node-pilot/internal/repository"
 	"node-pilot/internal/service"
 	"node-pilot/internal/websocket"
@@ -66,6 +67,9 @@ func main() {
 
 	h := handler.NewHandler(repo, sshPool, wsHub, taskSvc)
 
+	jwtSecret := "node-pilot-jwt-secret-key-32bytes!" // 32 bytes for HS256
+	authHandler := handler.NewAuthHandler(repo, jwtSecret)
+
 	if *debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -78,6 +82,15 @@ func main() {
 
 	api := r.Group("/api")
 	{
+		auth := api.Group("/v1/auth")
+		{
+			auth.POST("/login", authHandler.Login)
+			auth.GET("/me", middleware.JWTAuth(jwtSecret), authHandler.Me)
+			auth.POST("/refresh", authHandler.RefreshToken)
+			auth.PUT("/profile", middleware.JWTAuth(jwtSecret), authHandler.UpdateProfile)
+			auth.PUT("/password", middleware.JWTAuth(jwtSecret), authHandler.ChangePassword)
+		}
+
 		servers := api.Group("/servers")
 		{
 			servers.GET("", h.ListServers)

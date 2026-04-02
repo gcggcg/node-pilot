@@ -51,7 +51,7 @@ jobs:
     
     - name: Download dependencies
       run: |
-        go mod download
+        go mod tidy
         go mod verify
         echo "依赖下载完成"
     
@@ -79,10 +79,3 @@ jobs:
           find ../.. -name "node-pilot" -type f
           exit 1
         fi
-    
-    - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: server-binary
-        path: node-pilot
-        retention-days: 7

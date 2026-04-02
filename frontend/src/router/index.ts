@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { setupAuthGuard } from './auth-guard';
 
 const router = createRouter({
     history: createWebHistory(),
@@ -8,46 +9,74 @@ const router = createRouter({
             redirect: '/servers'
         },
         {
+            path: '/login',
+            name: 'login',
+            component: () => import('@/views/Login.vue'),
+            meta: { requiresAuth: false }
+        },
+        {
             path: '/servers',
             name: 'servers',
-            component: () => import('@/views/ServerList.vue')
+            component: () => import('@/views/ServerList.vue'),
+            meta: { requiresAuth: true }
         },
         {
             path: '/servers/new',
             name: 'server-new',
-            component: () => import('@/views/ServerForm.vue')
+            component: () => import('@/views/ServerForm.vue'),
+            meta: { requiresAuth: true }
         },
         {
             path: '/servers/:id/edit',
             name: 'server-edit',
-            component: () => import('@/views/ServerForm.vue')
+            component: () => import('@/views/ServerForm.vue'),
+            meta: { requiresAuth: true }
         },
         {
             path: '/scripts',
             name: 'scripts',
-            component: () => import('@/views/ScriptList.vue')
+            component: () => import('@/views/ScriptList.vue'),
+            meta: { requiresAuth: true }
         },
         {
             path: '/scripts/new',
             name: 'script-new',
-            component: () => import('@/views/ScriptForm.vue')
+            component: () => import('@/views/ScriptForm.vue'),
+            meta: { requiresAuth: true }
         },
         {
             path: '/scripts/:id/edit',
             name: 'script-edit',
-            component: () => import('@/views/ScriptForm.vue')
+            component: () => import('@/views/ScriptForm.vue'),
+            meta: { requiresAuth: true }
         },
         {
             path: '/tasks',
             name: 'tasks',
-            component: () => import('@/views/TaskList.vue')
+            component: () => import('@/views/TaskList.vue'),
+            meta: { requiresAuth: true }
         },
         {
             path: '/tasks/:id/output',
             name: 'task-output',
-            component: () => import('@/views/TaskOutput.vue')
+            component: () => import('@/views/TaskOutput.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/users',
+            name: 'users',
+            component: () => import('@/views/UserList.vue'),
+            meta: { requiresAuth: true, requiresAdmin: true }
+        },
+        {
+            path: '/profile',
+            name: 'profile',
+            component: () => import('@/views/Profile.vue'),
+            meta: { requiresAuth: true }
         },
     ]
 });
+
+setupAuthGuard(router);
 
 export default router;

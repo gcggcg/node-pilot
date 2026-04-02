@@ -139,3 +139,44 @@ export interface UserListResponse {
     page: number;
     pageSize: number;
 }
+
+export interface FileUpload {
+    id: number;
+    name: string;
+    local_path: string;
+    remote_path: string;
+    status: 'pending' | 'success' | 'failed';
+    created_at: string;
+    updated_at: string;
+}
+
+export interface FileUploadServer {
+    id: number;
+    file_upload_id: number;
+    server_id: number;
+    server_name?: string;
+    status: 'pending' | 'success' | 'failed';
+    error_message?: string;
+    file_name?: string;
+    remote_full_path?: string;
+    created_at: string;
+}
+
+export interface FileUploadForm {
+    name: string;
+    localPath: string;
+    remotePath: string;
+    serverIds: number[];
+}
+
+export interface FileUploadListResponse {
+    data: FileUpload[];
+    total: number;
+    page: number;
+    pageSize: number;
+}
+
+export interface FileUploadResultResponse {
+    file_upload: FileUpload;
+    results: FileUploadServer[];
+}

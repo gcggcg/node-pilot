@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ServerForm, ScriptForm, TaskForm, PaginatedResponse, PaginationParams, LoginResponse, User, RefreshRequest, UpdateProfileRequest, ChangePasswordRequest, CreateUserRequest, UserListResponse } from '@/types';
+import type { ServerForm, ScriptForm, TaskForm, PaginatedResponse, PaginationParams, LoginResponse, User, RefreshRequest, UpdateProfileRequest, ChangePasswordRequest, CreateUserRequest, UserListResponse, FileUploadForm, FileUploadListResponse, FileUploadResultResponse } from '@/types';
 
 const api = axios.create({
     baseURL: '/api',
@@ -112,6 +112,52 @@ export const taskApi = {
     create: (data: TaskForm) => api.post('/tasks', data),
     cancel: (id: number) => api.delete(`/tasks/${id}`),
     deleteMany: (ids: number[]) => api.post('/tasks/batch-delete', { ids }),
+};
+
+export const fileUploadApi = {
+    list: (params?: {
+        page?: number;
+        pageSize?: number;
+        status?: string;
+        keyword?: string;
+        startTime?: string;
+        endTime?: string;
+    }) => {
+        const query = params
+            ? `?page=${params.page || 1}&pageSize=${params.pageSize || 10}${params.status ? `&status=${params.status}` : ''}${params.keyword ? `&keyword=${params.keyword}` : ''}${params.startTime ? `&startTime=${params.startTime}` : ''}${params.endTime ? `&endTime=${params.endTime}` : ''}`
+            : '';
+        return api.get<any, FileUploadListResponse>(`/v1/file-uploads${query}`);
+    },
+    
+    create: (data: FileUploadForm) => {
+        return api.post('/v1/file-uploads', data);
+    },
+    
+    update: (id: number, data: FileUploadForm) => {
+        return api.put(`/v1/file-uploads/${id}`, data);
+    },
+    
+    execute: (id: number) => {
+        return api.post(`/v1/file-uploads/${id}/execute`);
+    },
+    
+    getResults: (id: number) => {
+        return api.get<any, FileUploadResultResponse>(`/v1/file-uploads/${id}/results`);
+    },
+    
+    delete: (ids: number[]) => {
+        return api.delete('/v1/file-uploads', { data: { ids } });
+    },
+    
+    uploadFile: (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post('/v1/file-uploads/upload-file', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    },
 };
 
 export default api;

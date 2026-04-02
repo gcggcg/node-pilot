@@ -102,6 +102,32 @@ func initSchema(db *sql.DB) error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE TABLE IF NOT EXISTS file_uploads (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		local_path TEXT NOT NULL,
+		remote_path TEXT NOT NULL,
+		status TEXT DEFAULT 'pending',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS file_upload_servers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		file_upload_id INTEGER NOT NULL,
+		server_id INTEGER NOT NULL,
+		server_name TEXT DEFAULT '',
+		status TEXT DEFAULT 'pending',
+		error_message TEXT DEFAULT '',
+		file_name TEXT NOT NULL,
+		remote_full_path TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (file_upload_id) REFERENCES file_uploads(id) ON DELETE CASCADE
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_file_upload_servers_upload ON file_upload_servers(file_upload_id);
+	CREATE INDEX IF NOT EXISTS idx_file_upload_servers_server ON file_upload_servers(server_id);
 	`
 	_, err := db.Exec(schema)
 	return err

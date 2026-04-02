@@ -70,3 +70,25 @@ type User struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
+
+type FileUpload struct {
+	ID         int64     `json:"id"`
+	Name       string    `json:"name"`        // 配置名称
+	LocalPath  string    `json:"local_path"`  // ./data/files/ 下的相对路径
+	RemotePath string    `json:"remote_path"` // 远程目标路径，必须以/开头
+	Status     string    `json:"status"`      // pending|success|failed
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type FileUploadServer struct {
+	ID             int64     `json:"id"`
+	FileUploadID   int64     `json:"file_upload_id"`
+	ServerID       int64     `json:"server_id"`
+	ServerName     string    `json:"server_name,omitempty"`
+	Status         string    `json:"status"` // pending|success|failed
+	ErrorMessage   string    `json:"error_message,omitempty"`
+	FileName       string    `json:"file_name"`        // 文件名
+	RemoteFullPath string    `json:"remote_full_path"` // 完整远程路径
+	CreatedAt      time.Time `json:"created_at"`
+}

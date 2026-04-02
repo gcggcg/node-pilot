@@ -75,7 +75,7 @@ const showPassword = ref(false);
 const loading = ref(false);
 const error = ref('');
 
-function particleStyle(i: number) {
+function particleStyle(_i: number) {
     return {
         left: `${Math.random() * 100}%`,
         animationDelay: `${Math.random() * 10}s`,

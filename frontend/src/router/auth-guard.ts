@@ -2,7 +2,7 @@ import type { Router } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 export function setupAuthGuard(router: Router) {
-    router.beforeEach(async (to, from, next) => {
+    router.beforeEach(async (to, _from, next) => {
         const authStore = useAuthStore();
         
         const requiresAuth = to.meta.requiresAuth !== false;

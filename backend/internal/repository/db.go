@@ -470,6 +470,39 @@ func (r *Repository) UpdateTaskServerStatus(id int64, status, output, errMsg str
 	return err
 }
 
+// CreateTaskServers 批量创建任务-服务器关联
+func (r *Repository) CreateTaskServers(taskID int64, serverIDs []int64) error {
+	if len(serverIDs) == 0 {
+		return nil
+	}
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`INSERT INTO task_servers (task_id, server_id, status) VALUES (?, ?, 'pending')`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, serverID := range serverIDs {
+		_, err := stmt.Exec(taskID, serverID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// DeleteTaskServers 删除任务的所有服务器关联
+func (r *Repository) DeleteTaskServers(taskID int64) error {
+	_, err := r.db.Exec(`DELETE FROM task_servers WHERE task_id = ?`, taskID)
+	return err
+}
+
 func (r *Repository) DeleteTasks(ids []int64) error {
 	if len(ids) == 0 {
 		return nil

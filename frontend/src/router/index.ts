@@ -57,6 +57,18 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
+            path: '/tasks/new',
+            name: 'task-new',
+            component: () => import('@/views/TaskForm.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/tasks/:id/edit',
+            name: 'task-edit',
+            component: () => import('@/views/TaskForm.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
             path: '/tasks/:id/output',
             name: 'task-output',
             component: () => import('@/views/TaskOutput.vue'),

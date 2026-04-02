@@ -10,7 +10,7 @@
                 >
                     删除已选 ({{ selectedIds.length }})
                 </button>
-                <button @click="showCreateDialog = true" class="btn btn-primary">+ 运行任务</button>
+                <button @click="router.push('/tasks/new')" class="btn btn-primary">+ 新建任务</button>
             </div>
         </div>
 
@@ -48,7 +48,24 @@
                     </td>
                     <td>{{ formatDate(task.created_at) }}</td>
                     <td class="actions">
+                        <!-- 手动执行按钮（仅 pending 状态显示） -->
+                        <button
+                            v-if="task.status === 'pending'"
+                            @click="executeTask(task.id)"
+                            class="btn btn-small btn-primary"
+                        >执行</button>
+                        
+                        <!-- 编辑按钮（仅 pending 状态显示） -->
+                        <router-link 
+                            v-if="task.status === 'pending'"
+                            :to="`/tasks/${task.id}/edit`" 
+                            class="btn btn-small"
+                        >编辑</router-link>
+                        
+                        <!-- 输出按钮 -->
                         <router-link :to="`/tasks/${task.id}/output`" class="btn btn-small">输出</router-link>
+                        
+                        <!-- 取消按钮（仅 running 状态显示） -->
                         <button
                             v-if="task.status === 'running'"
                             @click="cancelTask(task.id)"
@@ -57,7 +74,7 @@
                     </td>
                 </tr>
                 <tr v-if="store.tasks.length === 0">
-                    <td colspan="6" class="empty">暂无任务，点击"+ 运行任务"创建</td>
+                    <td colspan="6" class="empty">暂无任务，点击"+ 新建任务"创建</td>
                 </tr>
             </tbody>
         </table>
@@ -69,45 +86,6 @@
             :total="pagination.total"
             @change="handlePageChange"
         />
-
-        <div v-if="showCreateDialog" class="dialog-overlay" @click.self="showCreateDialog = false">
-            <div class="dialog">
-                <h2>运行任务</h2>
-                <div class="form-group">
-                    <label>任务名称</label>
-                    <input v-model="newTask.name" type="text" placeholder="例如: 批量部署-1" />
-                </div>
-                <div class="form-group">
-                    <label>脚本</label>
-                    <select v-model="newTask.script_id">
-                        <option value="">选择脚本...</option>
-                        <option v-for="s in scriptStore.scripts" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>服务器</label>
-                    <div class="server-list">
-                        <label v-for="server in serverStore.servers" :key="server.id" class="server-item">
-                            <label class="checkbox-wrapper">
-                                <input type="checkbox" :value="server.id" v-model="newTask.server_ids" />
-                                <span class="checkmark"></span>
-                            </label>
-                            <span class="server-info">
-                                <span class="server-name">{{ server.name }}</span>
-                                <span class="server-host">{{ server.host }}</span>
-                            </span>
-                        </label>
-                        <div v-if="serverStore.servers.length === 0" class="no-servers">
-                            暂无服务器，请先添加服务器
-                        </div>
-                    </div>
-                </div>
-                <div class="dialog-actions">
-                    <button @click="createTask" class="btn btn-primary" :disabled="loading">运行</button>
-                    <button @click="showCreateDialog = false" class="btn btn-secondary">取消</button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 
@@ -115,24 +93,13 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useTaskStore } from '@/stores/task';
-import { useScriptStore } from '@/stores/script';
-import { useServerStore } from '@/stores/server';
 import Pagination from '@/components/Pagination.vue';
 
 const router = useRouter();
 const route = useRoute();
 const store = useTaskStore();
-const scriptStore = useScriptStore();
-const serverStore = useServerStore();
 
-const showCreateDialog = ref(false);
-const loading = ref(false);
 const selectedIds = ref<number[]>([]);
-const newTask = ref({
-    name: '',
-    script_id: '' as number | '',
-    server_ids: [] as number[]
-});
 
 const pagination = ref({
     page: Number(route.query.page) || 1,
@@ -163,8 +130,6 @@ function handlePageChange(payload: { page: number; pageSize: number }) {
 
 onMounted(() => {
     loadData();
-    scriptStore.fetchScripts();
-    serverStore.fetchServers();
 });
 
 watch(() => route.query, (query) => {
@@ -181,32 +146,20 @@ function toggleSelectAll() {
     }
 }
 
-async function createTask() {
-    if (!newTask.value.name || !newTask.value.script_id || newTask.value.server_ids.length === 0) {
-        alert('请填写所有字段');
-        return;
-    }
-    loading.value = true;
-    try {
-        await store.createTask({
-            name: newTask.value.name,
-            script_id: Number(newTask.value.script_id),
-            server_ids: newTask.value.server_ids
-        });
-        showCreateDialog.value = false;
-        newTask.value = { name: '', script_id: '', server_ids: [] };
-        pagination.value.total = store.pagination.total;
-    } catch (e: any) {
-        alert(e.message || '创建任务失败');
-    } finally {
-        loading.value = false;
-    }
-}
-
 async function cancelTask(id: number) {
     if (confirm('确定要取消此任务吗？')) {
         await store.cancelTask(id);
         pagination.value.total = store.pagination.total;
+    }
+}
+
+async function executeTask(id: number) {
+    if (confirm('确定要执行此任务吗？')) {
+        try {
+            await store.executeTask(id);
+        } catch (e: any) {
+            alert(e.message || '执行任务失败');
+        }
     }
 }
 

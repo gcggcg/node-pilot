@@ -81,6 +81,49 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
+    async function executeTask(id: number) {
+        loading.value = true;
+        error.value = null;
+        try {
+            await taskApi.execute(id);
+            await fetchTasks(pagination.value.page, pagination.value.pageSize);
+        } catch (e: any) {
+            error.value = e.message;
+            throw e;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function updateTask(id: number, data: TaskForm) {
+        loading.value = true;
+        error.value = null;
+        try {
+            await taskApi.update(id, data);
+            await fetchTasks(pagination.value.page, pagination.value.pageSize);
+        } catch (e: any) {
+            error.value = e.message;
+            throw e;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function fetchTaskDetail(id: number) {
+        loading.value = true;
+        error.value = null;
+        try {
+            const res = await taskApi.get(id);
+            currentTask.value = res.task;
+            return res;
+        } catch (e: any) {
+            error.value = e.message;
+            throw e;
+        } finally {
+            loading.value = false;
+        }
+    }
+
     function connectWebSocket(taskId: number) {
         currentTaskId.value = taskId;
         
@@ -152,7 +195,10 @@ export const useTaskStore = defineStore('task', () => {
         pagination,
         taskStats,
         fetchTasks,
+        fetchTaskDetail,
         createTask,
+        updateTask,
+        executeTask,
         cancelTask,
         deleteTasks,
         connectWebSocket,

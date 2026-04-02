@@ -1,6 +1,9 @@
 package service
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -40,6 +43,90 @@ func (e *TaskExecutor) CancelTask(taskID int64) {
 func (e *TaskExecutor) IsTaskCancelled(taskID int64) bool {
 	_, cancelled := e.cancelledTasks.Load(taskID)
 	return cancelled
+}
+
+// ExecuteTask 手动执行指定任务
+func (e *TaskExecutor) ExecuteTask(taskID int64) error {
+	task, err := e.repo.GetTask(taskID)
+	if err != nil {
+		return fmt.Errorf("task not found: %w", err)
+	}
+
+	// 只能执行 pending 状态的任务
+	if task.Status != "pending" {
+		return fmt.Errorf("任务不是pending状态，无法执行")
+	}
+
+	taskServers, err := e.repo.GetTaskServers(task.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get task servers: %w", err)
+	}
+
+	if len(taskServers) == 0 {
+		return fmt.Errorf("任务没有关联服务器")
+	}
+
+	// 获取服务器信息用于执行
+	var servers []*model.Server
+	for _, ts := range taskServers {
+		server, err := e.repo.GetServer(ts.ServerID)
+		if err == nil {
+			servers = append(servers, server)
+		}
+	}
+
+	if len(servers) == 0 {
+		return fmt.Errorf("没有可用的服务器")
+	}
+
+	// 获取第一个服务器的密码（假设所有服务器密码相同）
+	password, err := e.decryptPassword(servers[0].PasswordEncrypted)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt password: %w", err)
+	}
+
+	script, err := e.repo.GetScript(task.ScriptID)
+	if err != nil {
+		return fmt.Errorf("failed to get script: %w", err)
+	}
+
+	// 在 goroutine 中执行
+	go e.ExecuteScript(task, script, servers, password)
+
+	return nil
+}
+
+// decryptPassword 解密服务器密码
+func (e *TaskExecutor) decryptPassword(encrypted string) (string, error) {
+	if encrypted == "" {
+		return "", nil
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		return "", err
+	}
+
+	key := []byte("12345678901234567890123456789012") // 32 bytes for AES-256
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := gcm.NonceSize()
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
 }
 
 func (e *TaskExecutor) TestConnection(server *model.Server, password string) error {

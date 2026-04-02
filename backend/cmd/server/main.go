@@ -138,6 +138,8 @@ func main() {
 			tasks.GET("", h.ListTasks)
 			tasks.GET("/:id", h.GetTask)
 			tasks.POST("", h.CreateTask)
+			tasks.PUT("/:id", h.UpdateTask)
+			tasks.POST("/:id/execute", h.ExecuteTask)
 			tasks.DELETE("/:id", h.CancelTask)
 			tasks.POST("/batch-delete", h.DeleteTasks)
 			tasks.GET("/:id/output", h.GetTaskOutput)

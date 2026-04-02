@@ -394,26 +394,92 @@ func (h *Handler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	task.ID = id
-
-	var servers []*model.Server
-	for _, sid := range input.ServerIDs {
-		server, err := h.repo.GetServer(sid)
-		if err == nil {
-			servers = append(servers, server)
-		}
+	// 创建任务-服务器关联（批量）
+	if err := h.repo.CreateTaskServers(id, input.ServerIDs); err != nil {
+		h.repo.DeleteTasks([]int64{id})
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
 	}
 
-	go func() {
-		if len(servers) > 0 {
-			srv := servers[0]
-			password, _ := h.decrypt(srv.PasswordEncrypted)
-			script, _ := h.repo.GetScript(input.ScriptID)
-			h.taskSvc.ExecuteScript(task, script, servers, password)
-		}
-	}()
+	// 移除自动执行逻辑 - 现在需要手动调用 ExecuteTask
+	// go func() {
+	//     if len(servers) > 0 {
+	//         srv := servers[0]
+	//         password, _ := h.decrypt(srv.PasswordEncrypted)
+	//         script, _ := h.repo.GetScript(input.ScriptID)
+	//         h.taskSvc.ExecuteScript(task, script, servers, password)
+	//     }
+	// }()
 
 	c.JSON(201, gin.H{"id": id})
+}
+
+// ExecuteTask 手动执行指定任务
+func (h *Handler) ExecuteTask(c *gin.Context) {
+	idStr := c.Param("id")
+	id, _ := strconv.ParseInt(idStr, 10, 64)
+
+	task, err := h.repo.GetTask(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "task not found"})
+		return
+	}
+
+	if task.Status != "pending" {
+		c.JSON(400, gin.H{"error": "only pending tasks can be executed"})
+		return
+	}
+
+	if err := h.taskSvc.ExecuteTask(id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "task execution started"})
+}
+
+// UpdateTask 更新任务（仅允许 pending 状态的任务）
+type UpdateTaskInput struct {
+	ScriptID  int64   `json:"script_id"`
+	Name      string  `json:"name"`
+	ServerIDs []int64 `json:"server_ids"`
+}
+
+func (h *Handler) UpdateTask(c *gin.Context) {
+	idStr := c.Param("id")
+	id, _ := strconv.ParseInt(idStr, 10, 64)
+
+	task, err := h.repo.GetTask(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "task not found"})
+		return
+	}
+
+	// 只能修改 pending 状态的任务
+	if task.Status != "pending" {
+		c.JSON(400, gin.H{"error": "only pending tasks can be modified"})
+		return
+	}
+
+	var input UpdateTaskInput
+	if err := c.BindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 删除旧的服务器关联
+	if err := h.repo.DeleteTaskServers(id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 创建新的服务器关联
+	if err := h.repo.CreateTaskServers(id, input.ServerIDs); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "task updated"})
 }
 
 func (h *Handler) CancelTask(c *gin.Context) {

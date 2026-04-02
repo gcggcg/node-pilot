@@ -109,7 +109,17 @@ export const taskApi = {
         return api.get<any, PaginatedResponse<any>>(`/tasks${query}`);
     },
     get: (id: number) => api.get<any, any>(`/tasks/${id}`),
-    create: (data: TaskForm) => api.post('/tasks', data),
+    create: (data: TaskForm) => api.post('/tasks', {
+        script_id: data.script_id,
+        name: data.name,
+        server_ids: data.server_ids
+    }),
+    update: (id: number, data: TaskForm) => api.put(`/tasks/${id}`, {
+        script_id: data.script_id,
+        name: data.name,
+        server_ids: data.server_ids
+    }),
+    execute: (id: number) => api.post(`/tasks/${id}/execute`),
     cancel: (id: number) => api.delete(`/tasks/${id}`),
     deleteMany: (ids: number[]) => api.post('/tasks/batch-delete', { ids }),
 };

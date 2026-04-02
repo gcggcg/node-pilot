@@ -8,6 +8,8 @@
     "07-router-guards.md",
     "08-user-management-ui.md"
   ],
-  "running": "01-user-model-and-migration.md",
-  "succeed": []
+  "running": "02-jwt-auth-middleware.md",
+  "succeed": [
+    "01-user-model-and-migration.md"
+  ]
 }

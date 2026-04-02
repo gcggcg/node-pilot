@@ -71,6 +71,9 @@ func main() {
 	authHandler := handler.NewAuthHandler(repo, jwtSecret)
 	userHandler := handler.NewUserHandler(repo, jwtSecret)
 
+	fileUploadService := service.NewFileUploadService(repo, sshPool, "./data/files")
+	fileUploadHandler := handler.NewFileUploadHandler(repo, fileUploadService, "./data/files")
+
 	if *debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -135,6 +138,19 @@ func main() {
 
 		api.POST("/upload", h.UploadFile)
 		api.POST("/deploy", h.DeployFile)
+
+		fileUploads := api.Group("/v1/file-uploads")
+		fileUploads.Use(middleware.JWTAuth(jwtSecret))
+		{
+			fileUploads.GET("", fileUploadHandler.ListFileUploads)
+			fileUploads.POST("", fileUploadHandler.CreateFileUpload)
+			fileUploads.PUT("/:id", fileUploadHandler.UpdateFileUpload)
+			fileUploads.DELETE("", fileUploadHandler.DeleteFileUploads)
+			fileUploads.POST("/:id/execute", fileUploadHandler.ExecuteFileUpload)
+			fileUploads.GET("/:id/results", fileUploadHandler.GetFileUploadResults)
+		}
+
+		api.POST("/v1/file-uploads/upload-file", fileUploadHandler.UploadFileToStorage)
 	}
 
 	r.GET("/ws", h.WebSocketHandler)

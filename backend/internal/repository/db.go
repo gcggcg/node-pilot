@@ -159,6 +159,10 @@ func migrateSchema(db *sql.DB) error {
 		// Table might not exist, ignore error
 	}
 
+	// Add updated_at column to tasks table if not exists
+	_, err = db.Exec(`ALTER TABLE tasks ADD COLUMN updated_at DATETIME`)
+	// Silently ignore if column already exists
+
 	return nil
 }
 

@@ -503,6 +503,14 @@ func (r *Repository) DeleteTaskServers(taskID int64) error {
 	return err
 }
 
+// UpdateTask 更新任务基本信息（名称和脚本ID）
+func (r *Repository) UpdateTask(taskID int64, name string, scriptID int64) error {
+	_, err := r.db.Exec(
+		`UPDATE tasks SET name = ?, script_id = ?, updated_at = ? WHERE id = ?`,
+		name, scriptID, time.Now(), taskID)
+	return err
+}
+
 // UpdateTaskServerByIDs 根据taskID和serverID更新任务服务器状态
 func (r *Repository) UpdateTaskServerByIDs(taskID, serverID int64, status, output, errMsg string, started, finished *time.Time) error {
 	_, err := r.db.Exec(

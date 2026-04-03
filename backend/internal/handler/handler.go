@@ -414,7 +414,11 @@ func (h *Handler) CreateTask(c *gin.Context) {
 // ExecuteTask 手动执行指定任务
 func (h *Handler) ExecuteTask(c *gin.Context) {
 	idStr := c.Param("id")
-	id, _ := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid task id"})
+		return
+	}
 
 	task, err := h.repo.GetTask(id)
 	if err != nil {
@@ -444,7 +448,11 @@ type UpdateTaskInput struct {
 
 func (h *Handler) UpdateTask(c *gin.Context) {
 	idStr := c.Param("id")
-	id, _ := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid task id"})
+		return
+	}
 
 	task, err := h.repo.GetTask(id)
 	if err != nil {
@@ -461,6 +469,12 @@ func (h *Handler) UpdateTask(c *gin.Context) {
 	var input UpdateTaskInput
 	if err := c.BindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 更新任务基本信息
+	if err := h.repo.UpdateTask(id, input.Name, input.ScriptID); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 

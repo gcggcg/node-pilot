@@ -1,0 +1,14 @@
+{
+  "wait": [],
+  "running": "",
+  "succeed": [
+    "01-database-model-and-migration.md",
+    "02-repository-methods.md",
+    "03-file-upload-service.md",
+    "04-backend-handlers-routes.md",
+    "05-frontend-types-api.md",
+    "06-frontend-store.md",
+    "07-file-list-page.md",
+    "08-file-form-page.md"
+  ]
+}

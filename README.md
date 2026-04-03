@@ -59,7 +59,8 @@
 
 ```bash
 # Linux/macOS
-curl -fsSL https://github.com/gcggcg/node-pilot/releases/latest/download/node-pilot-linux-amd64 -o node-pilot
+进入：https://github.com/gcggcg/node-pilot/releases  下载安装包 node-pilot-linux-amd64.tar.gz
+tar -xzf node-pilot-linux-amd64.tar.gz
 chmod +x node-pilot
 
 # Windows
@@ -71,53 +72,26 @@ chmod +x node-pilot
 
 访问 `http://localhost:8080`
 
-### 源码构建
+### 源码构建 (推荐方案)
 
 **环境要求:**
 
 - Go 1.21+
 - Node.js 18+ (仅前端开发需要)
 
+#### 克隆仓库
+
 ```bash
-# 克隆仓库
 git clone https://github.com/gcggcg/node-pilot.git
 cd node-pilot
-
-# 构建后端
-cd backend
-go build -o node-pilot ./cmd/server
-
-# 构建前端
-cd ../frontend
-npm install
-npm run build
-
-# 复制前端到后端 web 目录
-cp -r dist/* ../backend/web/
-
-# 运行
-cd ../backend
-./node-pilot --db ../data/servers.db --listen :8080
 ```
 
-### 一键启动脚本
+#### 一键启动脚本
 
 ```bash
 cd node-pilot
 chmod +x scripts/start.sh
 ./scripts/start.sh
-```
-
-### Docker 部署
-
-```bash
-# 拉取镜像
-docker pull gcggcg/node-pilot:latest
-
-# 运行
-docker run -d -p 8080:8080 \
-  -v $(pwd)/data:/app/data \
-  node-pilot:latest
 ```
 
 ## 🏗 架构设计
@@ -168,8 +142,8 @@ docker run -d -p 8080:8080 \
 | 后端        | Go + Gin                  |
 | 前端        | Vue 3 + TypeScript + Vite |
 | 数据库       | SQLite (嵌入式)              |
-| 认证        | JWT (golang-jwt/jwt)       |
-| 密码哈希      | bcrypt                     |
+| 认证        | JWT (golang-jwt/jwt)      |
+| 密码哈希      | bcrypt                    |
 | SSH       | golang.org/x/crypto/ssh   |
 | WebSocket | gorilla/websocket         |
 | 密码加密      | AES-256-GCM               |
@@ -226,15 +200,16 @@ journalctl --vacuum-time=7d
 
 > ⚠️ 认证接口需要携带 `Authorization: Bearer <access_token>` 头（Refresh Token 接口除外）
 
-| 方法     | 端点                          | 说明        | 认证 |
-|--------|---------------------------|-----------|------|
-| POST   | `/api/v1/auth/login`      | 用户登录     | 否    |
-| GET    | `/api/v1/auth/me`         | 获取当前用户信息 | ✅    |
-| POST   | `/api/v1/auth/refresh`    | 刷新 Token  | 否    |
-| PUT    | `/api/v1/auth/profile`    | 更新个人信息  | ✅    |
-| PUT    | `/api/v1/auth/password`    | 修改密码     | ✅    |
+| 方法   | 端点                      | 说明       | 认证  |
+|------|-------------------------|----------|-----|
+| POST | `/api/v1/auth/login`    | 用户登录     | 否   |
+| GET  | `/api/v1/auth/me`       | 获取当前用户信息 | ✅   |
+| POST | `/api/v1/auth/refresh`  | 刷新 Token | 否   |
+| PUT  | `/api/v1/auth/profile`  | 更新个人信息   | ✅   |
+| PUT  | `/api/v1/auth/password` | 修改密码     | ✅   |
 
 **登录请求：**
+
 ```json
 POST /api/v1/auth/login
 {
@@ -244,6 +219,7 @@ POST /api/v1/auth/login
 ```
 
 **登录响应：**
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -257,11 +233,11 @@ POST /api/v1/auth/login
 
 > ⚠️ 仅管理员 (ROLE_ADMIN) 可访问
 
-| 方法     | 端点                          | 说明      | 认证 |
-|--------|-----------------------------|---------|------|
-| GET    | `/api/v1/admin/users`       | 获取用户列表 | ✅ + ADMIN |
-| POST   | `/api/v1/admin/users`       | 创建用户   | ✅ + ADMIN |
-| DELETE | `/api/v1/admin/users/:id`   | 删除用户   | ✅ + ADMIN |
+| 方法     | 端点                                 | 说明     | 认证        |
+|--------|------------------------------------|--------|-----------|
+| GET    | `/api/v1/admin/users`              | 获取用户列表 | ✅ + ADMIN |
+| POST   | `/api/v1/admin/users`              | 创建用户   | ✅ + ADMIN |
+| DELETE | `/api/v1/admin/users/:id`          | 删除用户   | ✅ + ADMIN |
 | POST   | `/api/v1/admin/users/batch-delete` | 批量删除用户 | ✅ + ADMIN |
 
 ### 服务器管理
@@ -302,16 +278,18 @@ POST /api/v1/auth/login
 
 列表接口支持分页查询，参数通过 URL query 传递：
 
-| 参数     | 类型    | 默认值 | 说明    |
-|---------|-------|------|-------|
-| `page`    | int   | 1    | 页码    |
-| `pageSize` | int   | 10   | 每页条数 |
+| 参数         | 类型  | 默认值 | 说明   |
+|------------|-----|-----|------|
+| `page`     | int | 1   | 页码   |
+| `pageSize` | int | 10  | 每页条数 |
 
 **分页响应格式：**
 
 ```json
 {
-  "data": [...],
+  "data": [
+    ...
+  ],
   "total": 100,
   "page": 1,
   "pageSize": 10
@@ -374,12 +352,12 @@ node-pilot/
 
 ### 环境变量
 
-| 变量                  | 默认值                 | 说明              |
-|---------------------|---------------------|-----------------|
-| `NODE_PILOT_DB`     | `./data/servers.db` | 数据库路径           |
-| `NODE_PILOT_LISTEN` | `:8080`             | 监听地址            |
-| `NODE_PILOT_KEY`    | (自动生成)              | AES 加密密钥 (32字节) |
-| `JWT_SECRET`        | (内置默认)              | JWT 签名密钥 (生产环境必须设置) |
+| 变量                  | 默认值                 | 说明                   |
+|---------------------|---------------------|----------------------|
+| `NODE_PILOT_DB`     | `./data/servers.db` | 数据库路径                |
+| `NODE_PILOT_LISTEN` | `:8080`             | 监听地址                 |
+| `NODE_PILOT_KEY`    | (自动生成)              | AES 加密密钥 (32字节)      |
+| `JWT_SECRET`        | (内置默认)              | JWT 签名密钥 (生产环境必须设置)  |
 | `ROOT_PASSWORD`     | `root`              | Root 用户初始密码 (首次部署设置) |
 
 ### 运行测试
@@ -408,9 +386,9 @@ npm test
 ```go
 // JWT Claims 结构
 type Claims struct {
-    UserID   int64  `json:"user_id"`
-    Username string `json:"username"`
-    Role     string `json:"role"` // ROLE_ADMIN or ROLE_USER
+UserID   int64  `json:"user_id"`
+Username string `json:"username"`
+Role     string `json:"role"` // ROLE_ADMIN or ROLE_USER
 }
 ```
 
@@ -425,9 +403,9 @@ type Claims struct {
 
 ### 默认账户
 
-| 用户名 | 密码 | 角色 |
-|-------|------|------|
-| root  | root | ROLE_ADMIN |
+| 用户名  | 密码   | 角色         |
+|------|------|------------|
+| root | root | ROLE_ADMIN |
 
 ## 🤝 贡献指南
 

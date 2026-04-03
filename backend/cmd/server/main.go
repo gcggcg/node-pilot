@@ -113,6 +113,7 @@ func main() {
 		}
 
 		servers := api.Group("/servers")
+		servers.Use(middleware.JWTAuth(jwtSecret))
 		{
 			servers.GET("", h.ListServers)
 			servers.GET("/:id", h.GetServer)
@@ -124,6 +125,7 @@ func main() {
 		}
 
 		scripts := api.Group("/scripts")
+		scripts.Use(middleware.JWTAuth(jwtSecret))
 		{
 			scripts.GET("", h.ListScripts)
 			scripts.GET("/:id", h.GetScript)
@@ -134,6 +136,7 @@ func main() {
 		}
 
 		tasks := api.Group("/tasks")
+		tasks.Use(middleware.JWTAuth(jwtSecret))
 		{
 			tasks.GET("", h.ListTasks)
 			tasks.GET("/:id", h.GetTask)
@@ -145,8 +148,8 @@ func main() {
 			tasks.GET("/:id/output", h.GetTaskOutput)
 		}
 
-		api.POST("/upload", h.UploadFile)
-		api.POST("/deploy", h.DeployFile)
+		api.POST("/upload", middleware.JWTAuth(jwtSecret), h.UploadFile)
+		api.POST("/deploy", middleware.JWTAuth(jwtSecret), h.DeployFile)
 
 		fileUploads := api.Group("/v1/file-uploads")
 		fileUploads.Use(middleware.JWTAuth(jwtSecret))

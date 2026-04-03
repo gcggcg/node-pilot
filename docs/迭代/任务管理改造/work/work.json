@@ -1,0 +1,12 @@
+{
+  "wait": [],
+  "running": "",
+  "succeed": [
+    "01-backend-repository.md",
+    "02-task-executor-service.md",
+    "03-backend-handlers-routes.md",
+    "04-frontend-types-api.md",
+    "05-frontend-store.md",
+    "06-task-list-form-router.md"
+  ]
+}

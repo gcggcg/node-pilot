@@ -1,0 +1,69 @@
+name: Go CI/CD
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  GO_VERSION: '1.25.7'
+  GO111MODULE: 'on'
+  GO_MODULE_PATH: './backend'  # 添加go.mod文件所在的路径
+
+jobs:
+
+  test-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.GO_MODULE_PATH }}  # 设置工作目录为backend目录
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Check go.mod
+      run: |
+        echo "当前目录结构:"
+        pwd
+        ls -la
+        echo ""
+        echo "查找go.mod文件:"
+        find . -name "go.mod" | sort
+        echo ""
+        if [ -f "go.mod" ]; then
+          echo "✅ 找到 go.mod 文件"
+          cat go.mod
+        else
+          echo "❌ 未找到 go.mod 文件"
+          # 检查backend目录
+          echo "检查backend目录:"
+          ls -la backend/ || true
+          # 自动创建 go.mod
+          go mod init node-pilot || true
+        fi
+    
+    - name: Download dependencies
+      run: |
+        go mod tidy
+        go mod verify
+        echo "依赖下载完成"
+    
+    - name: List modules
+      run: go list -m all
+    
+    - name: Check imports
+      run: go list ./...
+    
+    - name: Build binary
+      run: |
+        go build -o ../../node-pilot ./cmd/server/main.go
+        echo "构建完成，文件保存在项目根目录:"
+        ls -la ../../node-pilot || true
+    

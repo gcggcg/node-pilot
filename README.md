@@ -91,7 +91,7 @@ cd node-pilot
 ```bash
 cd node-pilot
 chmod +x scripts/start.sh
-./scripts/start.sh
+./scripts/start.sh 0.0.0.0 8080 debug
 ```
 
 ## 🏗 架构设计

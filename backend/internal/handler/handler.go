@@ -394,19 +394,13 @@ func (h *Handler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 注意：不再在此创建 task_servers 关联
-	// ExecuteTask 执行时会通过 executeOnServer 自动创建 task_servers 记录
-	// 这样可以避免重复记录问题
-
-	// 移除自动执行逻辑 - 现在需要手动调用 ExecuteTask
-	// go func() {
-	//     if len(servers) > 0 {
-	//         srv := servers[0]
-	//         password, _ := h.decrypt(srv.PasswordEncrypted)
-	//         script, _ := h.repo.GetScript(input.ScriptID)
-	//         h.taskSvc.ExecuteScript(task, script, servers, password)
-	//     }
-	// }()
+	// 创建 task_servers 关联
+	if len(input.ServerIDs) > 0 {
+		if err := h.repo.CreateTaskServers(id, input.ServerIDs); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+	}
 
 	c.JSON(201, gin.H{"id": id})
 }

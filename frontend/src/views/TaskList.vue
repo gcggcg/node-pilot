@@ -10,6 +10,12 @@
                 >
                     删除已选 ({{ selectedIds.length }})
                 </button>
+                <button 
+                    @click="toggleAutoRefresh" 
+                    :class="['btn', 'btn-small', autoRefresh ? 'btn-primary' : 'btn-secondary']"
+                >
+                    {{ autoRefresh ? '⏸ 暂停刷新' : '▶ 启用刷新' }}
+                </button>
                 <button @click="router.push('/tasks/new')" class="btn btn-primary">+ 新建任务</button>
             </div>
         </div>
@@ -90,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useTaskStore } from '@/stores/task';
 import Pagination from '@/components/Pagination.vue';
@@ -100,6 +106,8 @@ const route = useRoute();
 const store = useTaskStore();
 
 const selectedIds = ref<number[]>([]);
+const autoRefresh = ref(false);
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const pagination = ref({
     page: Number(route.query.page) || 1,
@@ -130,7 +138,37 @@ function handlePageChange(payload: { page: number; pageSize: number }) {
 
 onMounted(() => {
     loadData();
+    startAutoRefresh();
 });
+
+onUnmounted(() => {
+    stopAutoRefresh();
+});
+
+function startAutoRefresh() {
+    stopAutoRefresh();
+    if (autoRefresh.value) {
+        autoRefreshTimer = setInterval(() => {
+            loadData();
+        }, 3000);
+    }
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+    }
+}
+
+function toggleAutoRefresh() {
+    autoRefresh.value = !autoRefresh.value;
+    if (autoRefresh.value) {
+        startAutoRefresh();
+    } else {
+        stopAutoRefresh();
+    }
+}
 
 watch(() => route.query, (query) => {
     pagination.value.page = Number(query.page) || 1;

@@ -10,6 +10,12 @@
                 >
                     删除已选 ({{ selectedIds.length }})
                 </button>
+                <button 
+                    @click="toggleAutoRefresh" 
+                    :class="['btn', 'btn-small', autoRefresh ? 'btn-primary' : 'btn-secondary']"
+                >
+                    {{ autoRefresh ? '⏸ 暂停刷新' : '▶ 启用刷新' }}
+                </button>
                 <router-link to="/files/new" class="btn btn-primary">+ 新增上传配置</router-link>
             </div>
         </div>
@@ -143,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useFileUploadStore } from '@/stores/fileupload';
 import Pagination from '@/components/Pagination.vue';
@@ -153,6 +159,8 @@ const route = useRoute();
 const store = useFileUploadStore();
 const selectedIds = ref<number[]>([]);
 const showResultsModal = ref(false);
+const autoRefresh = ref(false);
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const filters = ref({
     status: '',
@@ -206,7 +214,37 @@ function handlePageChange(payload: { page: number; pageSize: number }) {
 
 onMounted(() => {
     loadData();
+    startAutoRefresh();
 });
+
+onUnmounted(() => {
+    stopAutoRefresh();
+});
+
+function startAutoRefresh() {
+    stopAutoRefresh();
+    if (autoRefresh.value) {
+        autoRefreshTimer = setInterval(() => {
+            loadData();
+        }, 3000);
+    }
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+    }
+}
+
+function toggleAutoRefresh() {
+    autoRefresh.value = !autoRefresh.value;
+    if (autoRefresh.value) {
+        startAutoRefresh();
+    } else {
+        stopAutoRefresh();
+    }
+}
 
 watch(() => route.query, (query) => {
     pagination.value.page = Number(query.page) || 1;

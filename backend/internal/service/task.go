@@ -527,7 +527,11 @@ func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, s
 			logger.Error("[TASK-%d][SERVER-%d] 脚本执行失败: %v", task.ID, srv.ID, err)
 		}
 		finished := time.Now()
-		e.repo.UpdateTaskServerStatus(tsID, "failed", output, err.Error(), &started, &finished)
+
+		// 构建详细的错误信息，包含退出码和实际输出
+		errMsg := buildDetailedErrorMsg(err, execCmd, output)
+
+		e.repo.UpdateTaskServerStatus(tsID, "failed", output, errMsg, &started, &finished)
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:       "server_done",
 			TaskID:     task.ID,
@@ -658,6 +662,40 @@ func limitLines(s string, n int) string {
 		return s
 	}
 	return strings.Join(allLines[len(allLines)-n:], "\n")
+}
+
+// buildDetailedErrorMsg 构建详细的错误信息，帮助排查问题
+// 包含：退出码、错误原因、命令输出（stdout/stderr）
+func buildDetailedErrorMsg(err error, cmd string, output string) string {
+	var sb strings.Builder
+	sb.WriteString("脚本执行失败\n")
+	sb.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	sb.WriteString("命令: ")
+	sb.WriteString(cmd)
+	sb.WriteString("\n\n")
+
+	// 检查是否是被信号终止的（如 Ctrl+C）
+	if strings.Contains(err.Error(), "signal") {
+		sb.WriteString("原因: 进程被信号终止\n")
+	} else if strings.Contains(err.Error(), "exited") {
+		// 尝试提取退出码
+		sb.WriteString("原因: 进程异常退出\n")
+	}
+
+	// 添加错误详情
+	sb.WriteString("错误: ")
+	sb.WriteString(err.Error())
+	sb.WriteString("\n\n")
+
+	// 添加命令输出（如果有）
+	if output != "" {
+		sb.WriteString("命令输出 (stdout/stderr):\n")
+		sb.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		sb.WriteString(output)
+		sb.WriteString("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	}
+
+	return sb.String()
 }
 
 func (e *TaskExecutor) DeployFile(server *model.Server, password, content, remotePath string) error {

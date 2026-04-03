@@ -1,5 +1,7 @@
 {
   "wait": [],
-  "running": "01-fix-task-server-association.md",
-  "succeed": []
+  "running": "",
+  "succeed": [
+    "01-fix-task-server-association.md"
+  ]
 }

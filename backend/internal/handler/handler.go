@@ -378,9 +378,11 @@ type CreateTaskInput struct {
 func (h *Handler) CreateTask(c *gin.Context) {
 	var input CreateTaskInput
 	if err := c.BindJSON(&input); err != nil {
+		logger.Error("[CreateTask] failed to parse request body: error=%v", err)
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+	logger.Debug("[CreateTask] parsed input: name=%s, script_id=%d, server_ids=%v", input.Name, input.ScriptID, input.ServerIDs)
 
 	task := &model.Task{
 		ScriptID: input.ScriptID,
@@ -388,18 +390,24 @@ func (h *Handler) CreateTask(c *gin.Context) {
 		Status:   "pending",
 	}
 
+	logger.Debug("[CreateTask] creating task in database")
 	id, err := h.repo.CreateTask(task)
 	if err != nil {
+		logger.Error("[CreateTask] failed to create task: error=%v", err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	logger.Debug("[CreateTask] task created with id=%d", id)
 
 	// 创建 task_servers 关联
 	if len(input.ServerIDs) > 0 {
+		logger.Debug("[CreateTask] creating task servers: task_id=%d, server_ids=%v", id, input.ServerIDs)
 		if err := h.repo.CreateTaskServers(id, input.ServerIDs); err != nil {
+			logger.Error("[CreateTask] failed to create task servers: error=%v", err)
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
+		logger.Debug("[CreateTask] task servers created successfully")
 	}
 
 	c.JSON(201, gin.H{"id": id})
@@ -444,45 +452,61 @@ func (h *Handler) UpdateTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
+		logger.Error("[UpdateTask] invalid task id: %s, error: %v", idStr, err)
 		c.JSON(400, gin.H{"error": "invalid task id"})
 		return
 	}
+	logger.Debug("[UpdateTask] starting update for task id=%d", id)
 
 	task, err := h.repo.GetTask(id)
 	if err != nil {
+		logger.Error("[UpdateTask] task not found: id=%d, error: %v", id, err)
 		c.JSON(404, gin.H{"error": "task not found"})
 		return
 	}
+	logger.Debug("[UpdateTask] task found: name=%s, status=%s", task.Name, task.Status)
 
 	// 只能修改 pending 状态的任务
 	if task.Status != "pending" {
+		logger.Warn("[UpdateTask] task status is not pending: id=%d, status=%s", id, task.Status)
 		c.JSON(400, gin.H{"error": "only pending tasks can be modified"})
 		return
 	}
 
 	var input UpdateTaskInput
 	if err := c.BindJSON(&input); err != nil {
+		logger.Error("[UpdateTask] failed to parse request body: error=%v", err)
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+	logger.Debug("[UpdateTask] parsed input: name=%s, script_id=%d, server_ids=%v", input.Name, input.ScriptID, input.ServerIDs)
 
 	// 更新任务基本信息
+	logger.Debug("[UpdateTask] updating task basic info: id=%d, name=%s, script_id=%d", id, input.Name, input.ScriptID)
 	if err := h.repo.UpdateTask(id, input.Name, input.ScriptID); err != nil {
+		logger.Error("[UpdateTask] failed to update task: error=%v", err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	logger.Debug("[UpdateTask] task basic info updated successfully")
 
 	// 删除旧的服务器关联
+	logger.Debug("[UpdateTask] deleting old task servers: task_id=%d", id)
 	if err := h.repo.DeleteTaskServers(id); err != nil {
+		logger.Error("[UpdateTask] failed to delete old task servers: error=%v", err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	logger.Debug("[UpdateTask] old task servers deleted")
 
 	// 创建新的服务器关联
+	logger.Debug("[UpdateTask] creating new task servers: task_id=%d, server_ids=%v", id, input.ServerIDs)
 	if err := h.repo.CreateTaskServers(id, input.ServerIDs); err != nil {
+		logger.Error("[UpdateTask] failed to create task servers: error=%v", err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	logger.Debug("[UpdateTask] new task servers created successfully")
 
 	c.JSON(200, gin.H{"message": "task updated"})
 }

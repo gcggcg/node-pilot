@@ -26,7 +26,8 @@ type Script struct {
 
 type Task struct {
 	ID         int64      `json:"id"`
-	ScriptID   int64      `json:"script_id"`
+	ScriptID   int64      `json:"script_id"`  // Deprecated: kept for backward compatibility, use ScriptIDs instead
+	ScriptIDs  string     `json:"script_ids"` // New field: comma-separated script IDs for batch execution (e.g., "1,2,3")
 	Name       string     `json:"name"`
 	Status     string     `json:"status"`
 	CreatedAt  time.Time  `json:"created_at"`

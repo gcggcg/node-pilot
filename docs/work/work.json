@@ -1,7 +1,11 @@
 {
-  "wait": [],
-  "running": "",
-  "succeed": [
-    "01-fix-task-server-association.md"
-  ]
+  "wait": [
+    "02-repository-methods.md",
+    "03-backend-handlers.md",
+    "04-stream-execution-engine.md",
+    "05-frontend-script-selector.md",
+    "06-frontend-task-form.md"
+  ],
+  "running": "01-database-model.md",
+  "succeed": []
 }

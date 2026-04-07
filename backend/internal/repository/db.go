@@ -163,6 +163,10 @@ func migrateSchema(db *sql.DB) error {
 	_, err = db.Exec(`ALTER TABLE tasks ADD COLUMN updated_at DATETIME`)
 	// Silently ignore if column already exists
 
+	// Add script_ids column to tasks table for batch script support
+	_, err = db.Exec(`ALTER TABLE tasks ADD COLUMN script_ids TEXT DEFAULT ''`)
+	// Silently ignore if column already exists
+
 	return nil
 }
 
@@ -361,7 +365,7 @@ func (r *Repository) DeleteScripts(ids []int64) error {
 }
 
 func (r *Repository) ListTasks() ([]*model.Task, error) {
-	rows, err := r.db.Query(`SELECT id, script_id, name, status, created_at, started_at, finished_at FROM tasks ORDER BY id DESC`)
+	rows, err := r.db.Query(`SELECT id, script_id, script_ids, name, status, created_at, started_at, finished_at FROM tasks ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +374,7 @@ func (r *Repository) ListTasks() ([]*model.Task, error) {
 	var tasks []*model.Task
 	for rows.Next() {
 		t := &model.Task{}
-		if err := rows.Scan(&t.ID, &t.ScriptID, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
 			return nil, err
 		}
 		tasks = append(tasks, t)
@@ -388,7 +392,7 @@ func (r *Repository) ListTasksWithPagination(page, pageSize int) ([]*model.Task,
 	}
 
 	rows, err := r.db.Query(
-		"SELECT id, script_id, name, status, created_at, started_at, finished_at FROM tasks ORDER BY id DESC LIMIT ? OFFSET ?",
+		"SELECT id, script_id, script_ids, name, status, created_at, started_at, finished_at FROM tasks ORDER BY id DESC LIMIT ? OFFSET ?",
 		pageSize, offset,
 	)
 	if err != nil {
@@ -399,7 +403,7 @@ func (r *Repository) ListTasksWithPagination(page, pageSize int) ([]*model.Task,
 	var tasks []*model.Task
 	for rows.Next() {
 		t := &model.Task{}
-		if err := rows.Scan(&t.ID, &t.ScriptID, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
 			return nil, 0, err
 		}
 		tasks = append(tasks, t)
@@ -409,8 +413,8 @@ func (r *Repository) ListTasksWithPagination(page, pageSize int) ([]*model.Task,
 
 func (r *Repository) GetTask(id int64) (*model.Task, error) {
 	t := &model.Task{}
-	err := r.db.QueryRow(`SELECT id, script_id, name, status, created_at, started_at, finished_at FROM tasks WHERE id = ?`, id).
-		Scan(&t.ID, &t.ScriptID, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt)
+	err := r.db.QueryRow(`SELECT id, script_id, script_ids, name, status, created_at, started_at, finished_at FROM tasks WHERE id = ?`, id).
+		Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -418,8 +422,8 @@ func (r *Repository) GetTask(id int64) (*model.Task, error) {
 }
 
 func (r *Repository) CreateTask(t *model.Task) (int64, error) {
-	result, err := r.db.Exec(`INSERT INTO tasks (script_id, name, status) VALUES (?, ?, ?)`,
-		t.ScriptID, t.Name, t.Status)
+	result, err := r.db.Exec(`INSERT INTO tasks (script_id, script_ids, name, status) VALUES (?, ?, ?, ?)`,
+		t.ScriptID, t.ScriptIDs, t.Name, t.Status)
 	if err != nil {
 		return 0, err
 	}
@@ -507,11 +511,11 @@ func (r *Repository) DeleteTaskServers(taskID int64) error {
 	return err
 }
 
-// UpdateTask 更新任务基本信息（名称和脚本ID）
-func (r *Repository) UpdateTask(taskID int64, name string, scriptID int64) error {
+// UpdateTask 更新任务基本信息（名称、脚本ID和批量脚本IDs）
+func (r *Repository) UpdateTask(taskID int64, name string, scriptID int64, scriptIDs string) error {
 	_, err := r.db.Exec(
-		`UPDATE tasks SET name = ?, script_id = ?, updated_at = ? WHERE id = ?`,
-		name, scriptID, time.Now(), taskID)
+		`UPDATE tasks SET name = ?, script_id = ?, script_ids = ?, updated_at = ? WHERE id = ?`,
+		name, scriptID, scriptIDs, time.Now(), taskID)
 	return err
 }
 

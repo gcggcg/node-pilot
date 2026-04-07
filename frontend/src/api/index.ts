@@ -111,11 +111,13 @@ export const taskApi = {
     get: (id: number) => api.get<any, any>(`/tasks/${id}`),
     create: (data: TaskForm) => api.post('/tasks', {
         script_id: data.script_id,
+        script_ids: data.script_ids || '',
         name: data.name,
         server_ids: data.server_ids
     }),
     update: (id: number, data: TaskForm) => api.put(`/tasks/${id}`, {
         script_id: data.script_id,
+        script_ids: data.script_ids || '',
         name: data.name,
         server_ids: data.server_ids
     }),

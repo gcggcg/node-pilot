@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"node-pilot/internal/logger"
@@ -392,7 +393,15 @@ func (h *Handler) CreateTask(c *gin.Context) {
 
 	if input.ScriptIDs != "" {
 		task.ScriptIDs = input.ScriptIDs
+		// 兼容：同时设置 ScriptID 为第一个脚本ID
+		parts := strings.Split(input.ScriptIDs, ",")
+		if len(parts) > 0 {
+			if firstID, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64); err == nil {
+				task.ScriptID = firstID
+			}
+		}
 	} else if input.ScriptID > 0 {
+		task.ScriptID = input.ScriptID
 		task.ScriptIDs = strconv.FormatInt(input.ScriptID, 10)
 	}
 
@@ -489,15 +498,24 @@ func (h *Handler) UpdateTask(c *gin.Context) {
 	logger.Debug("[UpdateTask] parsed input: name=%s, script_id=%d, script_ids=%s, server_ids=%v", input.Name, input.ScriptID, input.ScriptIDs, input.ServerIDs)
 
 	var scriptIDs string
+	var scriptID int64
 	if input.ScriptIDs != "" {
 		scriptIDs = input.ScriptIDs
+		// 兼容：同时设置 ScriptID 为第一个脚本ID
+		parts := strings.Split(input.ScriptIDs, ",")
+		if len(parts) > 0 {
+			if firstID, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64); err == nil {
+				scriptID = firstID
+			}
+		}
 	} else if input.ScriptID > 0 {
+		scriptID = input.ScriptID
 		scriptIDs = strconv.FormatInt(input.ScriptID, 10)
 	}
 
 	// 更新任务基本信息
-	logger.Debug("[UpdateTask] updating task basic info: id=%d, name=%s, script_id=%d, script_ids=%s", id, input.Name, input.ScriptID, scriptIDs)
-	if err := h.repo.UpdateTask(id, input.Name, input.ScriptID, scriptIDs); err != nil {
+	logger.Debug("[UpdateTask] updating task basic info: id=%d, name=%s, script_id=%d, script_ids=%s", id, input.Name, scriptID, scriptIDs)
+	if err := h.repo.UpdateTask(id, input.Name, scriptID, scriptIDs); err != nil {
 		logger.Error("[UpdateTask] failed to update task: error=%v", err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

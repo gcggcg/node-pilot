@@ -70,7 +70,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>();
 
 const scriptStore = useScriptStore();
-const selectedIds = ref<number[]>([]);
+const selectedIds = ref<number[]>([...props.modelValue]); // 初始化为传入值
 const search = ref('');
 const showDropdown = ref(false);
 const scripts = ref<Script[]>([]);

@@ -108,9 +108,19 @@ func (e *TaskExecutor) ExecuteTask(taskID int64) error {
 		return fmt.Errorf("failed to decrypt password: %w", err)
 	}
 
-	script, err := e.repo.GetScript(task.ScriptID)
-	if err != nil {
-		return fmt.Errorf("failed to get script: %w", err)
+	// 获取脚本 - 优先使用 ScriptIDs（批量），兼容 ScriptID（单脚本向后兼容）
+	var script *model.Script
+	if task.ScriptIDs != "" {
+		// 批量模式：不需要单脚本，ExecuteScript 会自己获取
+		script = nil
+	} else if task.ScriptID > 0 {
+		// 单脚本模式（向后兼容旧数据）
+		script, err = e.repo.GetScript(task.ScriptID)
+		if err != nil {
+			return fmt.Errorf("failed to get script: %w", err)
+		}
+	} else {
+		return fmt.Errorf("任务没有关联任何脚本")
 	}
 
 	// 构建 serverID -> taskServerID 映射，用于更新已有记录

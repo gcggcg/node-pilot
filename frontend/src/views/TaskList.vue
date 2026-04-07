@@ -226,10 +226,15 @@ function statusText(status: string): string {
 
 function formatScriptInfo(task: any): string {
     if (task.script_ids) {
-        const count = task.script_ids.split(',').length;
-        return `${count} 个脚本`;
+        const ids = task.script_ids.split(',').map((id: string) => (id as string).trim()).filter((id: string) => id);
+        if (ids.length > 0) {
+            return `脚本: ${ids.join(', ')}`;
+        }
     }
-    return `ID: ${task.script_id}`;
+    if (task.script_id && task.script_id > 0) {
+        return `ID: ${task.script_id}`;
+    }
+    return '-';
 }
 </script>
 

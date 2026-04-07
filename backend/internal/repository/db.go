@@ -329,6 +329,34 @@ func (r *Repository) GetScript(id int64) (*model.Script, error) {
 	return s, nil
 }
 
+func (r *Repository) GetScripts(ids []int64) ([]*model.Script, error) {
+	if len(ids) == 0 {
+		return []*model.Script{}, nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `SELECT id, name, description, content, target_path, created_at, updated_at FROM scripts WHERE id IN (` + strings.Join(placeholders, ",") + `)`
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var scripts []*model.Script
+	for rows.Next() {
+		s := &model.Script{}
+		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.Content, &s.TargetPath, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return nil, err
+		}
+		scripts = append(scripts, s)
+	}
+	return scripts, nil
+}
+
 func (r *Repository) CreateScript(s *model.Script) (int64, error) {
 	result, err := r.db.Exec(`INSERT INTO scripts (name, description, content, target_path) VALUES (?, ?, ?, ?)`,
 		s.Name, s.Description, s.Content, s.TargetPath)

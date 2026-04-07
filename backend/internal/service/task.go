@@ -19,6 +19,28 @@ import (
 	"github.com/pkg/sftp"
 )
 
+// ParseScriptIDs parses a comma-separated string of script IDs into an int64 array
+// Returns an empty array if the input is empty (backward compatibility for single script mode)
+func ParseScriptIDs(scriptIDs string) ([]int64, error) {
+	if scriptIDs == "" {
+		return []int64{}, nil
+	}
+	parts := strings.Split(scriptIDs, ",")
+	ids := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var id int64
+		if _, err := fmt.Sscanf(part, "%d", &id); err != nil {
+			return nil, fmt.Errorf("invalid script ID: %s", part)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 type TaskExecutor struct {
 	repo           *repository.Repository
 	sshPool        *SSHPool

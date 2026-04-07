@@ -6,6 +6,8 @@
     "05-frontend-script-selector.md",
     "06-frontend-task-form.md"
   ],
-  "running": "01-database-model.md",
-  "succeed": []
+  "running": "02-repository-methods.md",
+  "succeed": [
+    "01-database-model.md"
+  ]
 }

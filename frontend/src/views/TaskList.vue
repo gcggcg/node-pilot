@@ -33,7 +33,7 @@
                         </label>
                     </th>
                     <th>名称</th>
-                    <th>脚本ID</th>
+                    <th>脚本</th>
                     <th>状态</th>
                     <th>创建时间</th>
                     <th>操作</th>
@@ -48,7 +48,7 @@
                         </label>
                     </td>
                     <td>{{ task.name }}</td>
-                    <td>{{ task.script_id }}</td>
+                    <td>{{ formatScriptInfo(task) }}</td>
                     <td>
                         <span :class="['status', task.status]">{{ statusText(task.status) }}</span>
                     </td>
@@ -222,6 +222,14 @@ function statusText(status: string): string {
         'failed': '失败'
     };
     return statusMap[status] || status;
+}
+
+function formatScriptInfo(task: any): string {
+    if (task.script_ids) {
+        const count = task.script_ids.split(',').length;
+        return `${count} 个脚本`;
+    }
+    return `ID: ${task.script_id}`;
 }
 </script>
 

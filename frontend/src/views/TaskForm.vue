@@ -11,11 +11,12 @@
             </div>
 
             <div class="form-group">
-                <label>脚本</label>
-                <select v-model="form.script_id" required>
-                    <option value="">选择脚本...</option>
-                    <option v-for="s in scriptStore.scripts" :key="s.id" :value="s.id">{{ s.name }}</option>
-                </select>
+                <label>脚本 (支持批量)</label>
+                <ScriptSelector 
+                    v-model="selectedScriptIds"
+                    multiple
+                    placeholder="选择要执行的脚本（可多选）"
+                />
             </div>
 
             <div class="form-group">
@@ -79,6 +80,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useTaskStore } from '@/stores/task';
 import { useScriptStore } from '@/stores/script';
 import { useServerStore } from '@/stores/server';
+import ScriptSelector from '@/components/ScriptSelector.vue';
 import type { Server } from '@/types';
 
 const router = useRouter();
@@ -90,9 +92,11 @@ const serverStore = useServerStore();
 const form = ref({
     name: '',
     script_id: '' as number | '',
+    script_ids: '',
     server_ids: [] as number[]
 });
 
+const selectedScriptIds = ref<number[]>([]);
 const loading = ref(false);
 const isEdit = computed(() => !!route.params.id);
 const serverSearch = ref('');
@@ -100,9 +104,14 @@ const showServerDropdown = ref(false);
 const servers = ref<Server[]>([]);
 
 const isFormValid = computed(() => {
+    const hasScripts = selectedScriptIds.value.length > 0 || form.value.script_id;
     return form.value.name.trim() && 
-           form.value.script_id && 
+           hasScripts && 
            form.value.server_ids.length > 0;
+});
+
+const scriptIdsString = computed(() => {
+    return selectedScriptIds.value.join(',');
 });
 
 const filteredServers = computed(() => {
@@ -162,6 +171,12 @@ onMounted(async () => {
             const res = await store.fetchTaskDetail(id);
             form.value.name = res.task.name;
             form.value.script_id = res.task.script_id;
+            form.value.script_ids = res.task.script_ids || '';
+            if (res.task.script_ids) {
+                selectedScriptIds.value = res.task.script_ids.split(',').map((id: string) => parseInt(id.trim()));
+            } else if (res.task.script_id) {
+                selectedScriptIds.value = [res.task.script_id];
+            }
             form.value.server_ids = res.servers?.map((s: any) => s.server_id) || [];
         } catch (e) {
             alert('加载任务失败');
@@ -169,7 +184,6 @@ onMounted(async () => {
         }
     }
     
-    // 点击外部关闭服务器下拉框
     document.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
         if (!target.closest('.server-select')) {
@@ -183,18 +197,21 @@ async function handleSubmit() {
     
     loading.value = true;
     try {
+        const payload: any = {
+            name: form.value.name,
+            server_ids: form.value.server_ids
+        };
+        
+        if (selectedScriptIds.value.length > 0) {
+            payload.script_ids = scriptIdsString.value;
+        } else if (form.value.script_id) {
+            payload.script_id = Number(form.value.script_id);
+        }
+        
         if (isEdit.value) {
-            await store.updateTask(Number(route.params.id), {
-                name: form.value.name,
-                script_id: Number(form.value.script_id),
-                server_ids: form.value.server_ids
-            });
+            await store.updateTask(Number(route.params.id), payload);
         } else {
-            await store.createTask({
-                name: form.value.name,
-                script_id: Number(form.value.script_id),
-                server_ids: form.value.server_ids
-            });
+            await store.createTask(payload);
         }
         router.push('/tasks');
     } catch (e: any) {

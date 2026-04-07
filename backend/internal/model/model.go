@@ -59,6 +59,11 @@ type WSMessage struct {
 	Total      int       `json:"total,omitempty"`
 	Success    int       `json:"success,omitempty"`
 	Failed     int       `json:"failed,omitempty"`
+	// Batch script execution fields
+	ScriptIndex  int    `json:"script_index,omitempty"`  // Current script index (1-based)
+	TotalScripts int    `json:"total_scripts,omitempty"` // Total number of scripts
+	ScriptPath   string `json:"script_path,omitempty"`   // Script file path
+	ScriptName   string `json:"script_name,omitempty"`   // Script name
 }
 
 type User struct {

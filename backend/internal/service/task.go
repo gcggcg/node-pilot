@@ -17,6 +17,7 @@ import (
 	"node-pilot/internal/websocket"
 
 	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
 
 // ParseScriptIDs parses a comma-separated string of script IDs into an int64 array
@@ -167,11 +168,22 @@ func (e *TaskExecutor) TestConnection(server *model.Server, password string) err
 }
 
 func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, servers []*model.Server, password string, serverTaskServerMap map[int64]int64) {
+	scriptIDs, _ := ParseScriptIDs(task.ScriptIDs)
+	if len(scriptIDs) == 0 && script != nil {
+		scriptIDs = []int64{script.ID}
+	}
+
+	var scripts []*model.Script
+	if len(scriptIDs) > 0 {
+		scripts, _ = e.repo.GetScripts(scriptIDs)
+	}
+
 	if e.debug {
 		logger.Debug("[TASK-%d] ========== 任务开始执行 ==========", task.ID)
-		logger.Debug("[TASK-%d] 脚本名称: %s", task.ID, script.Name)
-		logger.Debug("[TASK-%d] 脚本内容:\n%s", task.ID, script.Content)
-		logger.Debug("[TASK-%d] 目标路径: %s", task.ID, script.TargetPath)
+		logger.Debug("[TASK-%d] 脚本数量: %d", task.ID, len(scripts))
+		for i, s := range scripts {
+			logger.Debug("[TASK-%d]   脚本[%d]: %s -> %s", task.ID, i+1, s.Name, s.TargetPath)
+		}
 		logger.Debug("[TASK-%d] 目标服务器数量: %d", task.ID, len(servers))
 		for i, s := range servers {
 			logger.Debug("[TASK-%d]   服务器[%d]: %s (%s:%d)", task.ID, i+1, s.Name, s.Host, s.Port)
@@ -184,9 +196,10 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 	e.repo.UpdateTaskStatus(task.ID, "running", &now, nil)
 
 	e.wsHub.BroadcastToTask(&model.WSMessage{
-		Type:      "task_start",
-		TaskID:    task.ID,
-		Timestamp: time.Now(),
+		Type:         "task_start",
+		TaskID:       task.ID,
+		TotalScripts: len(scripts),
+		Timestamp:    time.Now(),
 	}, uint64(task.ID))
 
 	batchSize := 10
@@ -195,7 +208,6 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 	wasCancelled := false
 
 	for i := 0; i < len(servers); i += batchSize {
-		// Check if task was cancelled
 		if e.IsTaskCancelled(task.ID) {
 			wasCancelled = true
 			if e.debug {
@@ -212,11 +224,10 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 		if e.debug {
 			logger.Debug("[TASK-%d] 执行批次 %d-%d (共%d台服务器)", task.ID, i+1, end, len(servers))
 		}
-		e.executeBatch(task, script, batch, password, i, len(servers), serverTaskServerMap)
+		e.executeBatch(task, scripts, batch, password, i, len(servers), serverTaskServerMap)
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	// Clean up cancelled task tracking
 	if wasCancelled {
 		e.cancelledTasks.Delete(task.ID)
 	}
@@ -232,7 +243,6 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 
 	finished := time.Now()
 
-	// If was cancelled, preserve cancelled status
 	if wasCancelled {
 		task.Status = "cancelled"
 		e.repo.UpdateTaskStatus(task.ID, "cancelled", task.StartedAt, &finished)
@@ -261,16 +271,408 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 	}, uint64(task.ID))
 }
 
-func (e *TaskExecutor) executeBatch(task *model.Task, script *model.Script, servers []*model.Server, password string, offset, total int, serverTaskServerMap map[int64]int64) {
+func (e *TaskExecutor) executeBatch(task *model.Task, scripts []*model.Script, servers []*model.Server, password string, offset, total int, serverTaskServerMap map[int64]int64) {
 	var wg sync.WaitGroup
 	for i, srv := range servers {
 		wg.Add(1)
 		go func(srv *model.Server, idx int) {
 			defer wg.Done()
-			e.executeOnServer(task, script, srv, password, offset+idx, total, serverTaskServerMap)
+			e.executeScriptsOnServer(task, srv, scripts, password, serverTaskServerMap)
 		}(srv, i)
 	}
 	wg.Wait()
+}
+
+func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Server, scripts []*model.Script, password string, serverTaskServerMap map[int64]int64) {
+	started := time.Now()
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] ========== 开始在服务器 %s 上执行 ==========", task.ID, srv.ID, srv.Name)
+		logger.Debug("[TASK-%d][SERVER-%d] 主机: %s:%d", task.ID, srv.ID, srv.Host, srv.Port)
+		logger.Debug("[TASK-%d][SERVER-%d] 用户: %s", task.ID, srv.ID, srv.Username)
+		logger.Debug("[TASK-%d][SERVER-%d] 脚本数量: %d", task.ID, srv.ID, len(scripts))
+		for i, s := range scripts {
+			logger.Debug("[TASK-%d][SERVER-%d]   脚本[%d]: %s -> %s", task.ID, srv.ID, i+1, s.Name, s.TargetPath)
+		}
+	}
+
+	var tsID int64
+	if existingID, ok := serverTaskServerMap[srv.ID]; ok {
+		tsID = existingID
+		e.repo.UpdateTaskServerByIDs(task.ID, srv.ID, "running", "", "", &started, nil)
+	} else {
+		ts := &model.TaskServer{
+			TaskID:   task.ID,
+			ServerID: srv.ID,
+			Status:   "running",
+		}
+		tsID, _ = e.repo.CreateTaskServer(ts)
+	}
+
+	e.wsHub.BroadcastToTask(&model.WSMessage{
+		Type:       "server_start",
+		TaskID:     task.ID,
+		ServerID:   srv.ID,
+		ServerName: srv.Name,
+		Timestamp:  time.Now(),
+	}, uint64(task.ID))
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] Step 1: 建立SSH连接...", task.ID, srv.ID)
+	}
+	client, err := e.sshPool.GetClient(srv.ID, srv.Host, srv.Port, srv.Username, password)
+	if err != nil {
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] SSH连接失败: %v", task.ID, srv.ID, err)
+		}
+		finished := time.Now()
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", err.Error(), &started, &finished)
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:       "server_done",
+			TaskID:     task.ID,
+			ServerID:   srv.ID,
+			ServerName: srv.Name,
+			Status:     "failed",
+			Content:    err.Error(),
+			Timestamp:  time.Now(),
+		}, uint64(task.ID))
+		return
+	}
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] SSH连接成功!", task.ID, srv.ID)
+	}
+	defer client.Close()
+
+	allSuccess := true
+	var totalOutput string
+
+	for i, scr := range scripts {
+		if e.IsTaskCancelled(task.ID) {
+			if e.debug {
+				logger.Debug("[TASK-%d][SERVER-%d] 任务被取消，停止执行", task.ID, srv.ID)
+			}
+			allSuccess = false
+			break
+		}
+
+		success := e.executeSingleScript(task, srv, scr, client, password, tsID, i+1, len(scripts))
+		if !success {
+			allSuccess = false
+			if e.debug {
+				logger.Error("[TASK-%d][SERVER-%d] 脚本执行失败 (%d/%d): %s", task.ID, srv.ID, i+1, len(scripts), scr.Name)
+			}
+			break
+		}
+	}
+
+	finished := time.Now()
+	if !allSuccess {
+		e.repo.UpdateTaskServerStatus(tsID, "failed", "", "batch script execution failed", &started, &finished)
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:       "server_done",
+			TaskID:     task.ID,
+			ServerID:   srv.ID,
+			ServerName: srv.Name,
+			Status:     "failed",
+			Content:    totalOutput,
+			Timestamp:  time.Now(),
+		}, uint64(task.ID))
+		return
+	}
+
+	e.repo.UpdateTaskServerStatus(tsID, "success", totalOutput, "", &started, &finished)
+	e.wsHub.BroadcastToTask(&model.WSMessage{
+		Type:       "server_done",
+		TaskID:     task.ID,
+		ServerID:   srv.ID,
+		ServerName: srv.Name,
+		Status:     "success",
+		Content:    totalOutput,
+		Timestamp:  time.Now(),
+	}, uint64(task.ID))
+}
+
+func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, script *model.Script, client *ssh.Client, password string, tsID int64, scriptIndex, totalScripts int) bool {
+	targetDir := filepath.Dir(script.TargetPath)
+	targetFile := script.TargetPath
+
+	e.wsHub.BroadcastToTask(&model.WSMessage{
+		Type:         "script_start",
+		TaskID:       task.ID,
+		ServerID:     srv.ID,
+		ServerName:   srv.Name,
+		ScriptIndex:  scriptIndex,
+		TotalScripts: totalScripts,
+		ScriptPath:   script.TargetPath,
+		ScriptName:   script.Name,
+		Timestamp:    time.Now(),
+	}, uint64(task.ID))
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] ========== 执行脚本 (%d/%d) ==========", task.ID, srv.ID, scriptIndex, totalScripts)
+		logger.Debug("[TASK-%d][SERVER-%d] 脚本名称: %s", task.ID, srv.ID, script.Name)
+		logger.Debug("[TASK-%d][SERVER-%d] 目标路径: %s", task.ID, srv.ID, targetFile)
+	}
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] Step 1: 创建目录 %s", task.ID, srv.ID, targetDir)
+	}
+	mkdirCmd := fmt.Sprintf("mkdir -p %s && echo OK", targetDir)
+	session, err := client.NewSession()
+	if err != nil {
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] 创建SSH会话失败: %v", task.ID, srv.ID, err)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      err.Error(),
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	out, err := session.CombinedOutput(mkdirCmd)
+	session.Close()
+	if err != nil {
+		errMsg := fmt.Sprintf("mkdir failed: %s, output: %s", err.Error(), string(out))
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] 创建目录失败: %s", task.ID, srv.ID, errMsg)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      errMsg,
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] 目录创建成功: %s", task.ID, srv.ID, targetDir)
+	}
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] Step 2: 通过SFTP写入脚本到 %s", task.ID, srv.ID, targetFile)
+		logger.Debug("[TASK-%d][SERVER-%d] 脚本大小: %d bytes", task.ID, srv.ID, len(script.Content))
+	}
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] 创建SFTP客户端失败: %v", task.ID, srv.ID, err)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      err.Error(),
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	f, err := sftpClient.Create(targetFile)
+	if err != nil {
+		sftpClient.Close()
+		errMsg := fmt.Sprintf("sftp create file failed: %s, target: %s", err.Error(), targetFile)
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] SFTP创建文件失败: %s", task.ID, srv.ID, errMsg)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      errMsg,
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	_, err = f.Write([]byte(script.Content))
+	f.Close()
+	sftpClient.Close()
+	if err != nil {
+		errMsg := fmt.Sprintf("sftp write failed: %s", err.Error())
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] SFTP写入文件失败: %s", task.ID, srv.ID, errMsg)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      errMsg,
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] SFTP写入成功!", task.ID, srv.ID)
+	}
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] Step 3: 设置执行权限 chmod +x %s", task.ID, srv.ID, targetFile)
+	}
+	chmodCmd := fmt.Sprintf("chmod +x %s && echo OK", targetFile)
+	session, err = client.NewSession()
+	if err != nil {
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] 创建chmod会话失败: %v", task.ID, srv.ID, err)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      err.Error(),
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	out, err = session.CombinedOutput(chmodCmd)
+	session.Close()
+	if err != nil {
+		errMsg := fmt.Sprintf("chmod failed: %s, output: %s", err.Error(), string(out))
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] chmod失败: %s", task.ID, srv.ID, errMsg)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      errMsg,
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] chmod成功!", task.ID, srv.ID)
+	}
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] Step 4: 执行脚本 cd %s && /bin/bash %s", task.ID, srv.ID, targetDir, targetFile)
+	}
+	session, err = client.NewSession()
+	if err != nil {
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] 创建执行会话失败: %v", task.ID, srv.ID, err)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      err.Error(),
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+	defer session.Close()
+
+	execCmd := fmt.Sprintf("cd %s && /bin/bash %s", targetDir, targetFile)
+
+	cmdOut, err := session.CombinedOutput(execCmd)
+
+	output := limitLines(string(cmdOut), 100)
+
+	logger.Debug("----------------------执行命令: %s, [TASK-%d][SERVER-%d][SCRIPT-%d] 执行结果: %s ====================", execCmd, task.ID, srv.ID, scriptIndex, output)
+
+	if len(output) > 0 {
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "output",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			Content:      output,
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+	}
+
+	if err != nil {
+		if e.debug {
+			logger.Error("[TASK-%d][SERVER-%d] 脚本执行失败: %v", task.ID, srv.ID, err)
+		}
+		e.wsHub.BroadcastToTask(&model.WSMessage{
+			Type:         "script_done",
+			TaskID:       task.ID,
+			ServerID:     srv.ID,
+			ServerName:   srv.Name,
+			ScriptIndex:  scriptIndex,
+			TotalScripts: totalScripts,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Status:       "failed",
+			Content:      output,
+			ExitCode:     1,
+			Timestamp:    time.Now(),
+		}, uint64(task.ID))
+		return false
+	}
+
+	if e.debug {
+		logger.Debug("[TASK-%d][SERVER-%d] ========== 脚本执行成功 (%d/%d) ==========", task.ID, srv.ID, scriptIndex, totalScripts)
+		logger.Debug("[TASK-%d][SERVER-%d] 执行输出 (最新50行):\n%s", task.ID, srv.ID, output)
+	}
+	e.wsHub.BroadcastToTask(&model.WSMessage{
+		Type:         "script_done",
+		TaskID:       task.ID,
+		ServerID:     srv.ID,
+		ServerName:   srv.Name,
+		ScriptIndex:  scriptIndex,
+		TotalScripts: totalScripts,
+		ScriptPath:   script.TargetPath,
+		ScriptName:   script.Name,
+		Status:       "success",
+		Content:      output,
+		ExitCode:     0,
+		Timestamp:    time.Now(),
+	}, uint64(task.ID))
+	return true
 }
 
 func (e *TaskExecutor) executeOnServer(task *model.Task, script *model.Script, srv *model.Server, password string, idx, total int, serverTaskServerMap map[int64]int64) {

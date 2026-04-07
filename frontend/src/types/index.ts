@@ -23,6 +23,7 @@ export interface Script {
 export interface Task {
     id: number;
     script_id: number;
+    script_ids: string;
     name: string;
     status: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';
     created_at: string;
@@ -72,7 +73,8 @@ export interface ScriptForm {
 }
 
 export interface TaskForm {
-    script_id: number;
+    script_id?: number;
+    script_ids?: string;
     name: string;
     server_ids: number[];
 }

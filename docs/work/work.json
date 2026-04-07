@@ -1,13 +1,12 @@
 {
-  "wait": [
+  "wait": [],
+  "running": null,
+  "succeed": [
+    "01-database-model.md",
+    "02-repository-methods.md",
     "03-backend-handlers.md",
     "04-stream-execution-engine.md",
     "05-frontend-script-selector.md",
     "06-frontend-task-form.md"
-  ],
-  "running": "03-backend-handlers.md",
-  "succeed": [
-    "01-database-model.md",
-    "02-repository-methods.md"
   ]
 }

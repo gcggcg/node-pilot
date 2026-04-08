@@ -30,7 +30,7 @@ interface ServerStatus {
 }
 
 const props = defineProps<{
-    outputs: Map<number, string>;
+    outputs: Record<number, string>;
     servers: ServerStatus[];
 }>();
 
@@ -38,8 +38,8 @@ const activeTab = ref<number>(0);
 const terminalRef = ref<HTMLElement | null>(null);
 
 const currentOutput = computed(() => {
-    if (activeTab.value && props.outputs.has(activeTab.value)) {
-        return props.outputs.get(activeTab.value);
+    if (activeTab.value && props.outputs[activeTab.value]) {
+        return props.outputs[activeTab.value];
     }
     return '';
 });
@@ -52,7 +52,7 @@ const currentError = computed(() => {
     return '';
 });
 
-watch(() => props.outputs.size, () => {
+watch(() => Object.keys(props.outputs).length, () => {
     nextTick(() => {
         if (terminalRef.value) {
             terminalRef.value.scrollTop = terminalRef.value.scrollHeight;

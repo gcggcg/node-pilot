@@ -231,7 +231,7 @@ function formatScriptInfo(task: any): string {
     if (task.script_ids) {
         const ids = task.script_ids.split(',').map((id: string) => (id as string).trim()).filter((id: string) => id);
         if (ids.length > 0) {
-            return `脚本: ${ids.join(', ')}`;
+            return `IDs: ${ids.join(', ')}`;
         }
     }
     if (task.script_id && task.script_id > 0) {

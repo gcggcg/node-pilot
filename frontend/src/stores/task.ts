@@ -9,7 +9,7 @@ export const useTaskStore = defineStore('task', () => {
     const currentTaskId = ref<number | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
-    const outputs = ref<Map<number, string>>(new Map());
+    const outputs = ref<Record<number, string>>({});
     const ws = ref<WebSocket | null>(null);
     const pagination = ref({
         page: 1,
@@ -128,7 +128,7 @@ export const useTaskStore = defineStore('task', () => {
         currentTaskId.value = taskId;
         
         // 清除旧的输出，避免显示之前任务的数据
-        outputs.value.clear();
+        outputs.value = {};
         
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
@@ -170,8 +170,8 @@ export const useTaskStore = defineStore('task', () => {
             return;
         }
         if (data.type === 'output' && data.server_id) {
-            const current = outputs.value.get(data.server_id) || '';
-            outputs.value.set(data.server_id, current + (data.content || ''));
+            const current = outputs.value[data.server_id] || '';
+            outputs.value[data.server_id] = current + (data.content || '');
         } else if (data.type === 'task_done' || data.type === 'server_done') {
             fetchTasks(pagination.value.page, pagination.value.pageSize);
         }
@@ -186,7 +186,7 @@ export const useTaskStore = defineStore('task', () => {
     }
 
     function clearOutputs() {
-        outputs.value.clear();
+        outputs.value = {};
     }
 
     return {

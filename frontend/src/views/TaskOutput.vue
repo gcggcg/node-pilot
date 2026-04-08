@@ -46,14 +46,14 @@ onMounted(async () => {
         
         // For running tasks, clear old outputs to avoid stale data
         if (task.value?.status === 'running') {
-            taskStore.outputs.clear();
+            taskStore.outputs = {};
         } else {
             // Pre-populate outputs with stored output from DB for completed tasks
             for (const server of taskServers.value) {
                 if (server.status === 'failed' && server.error) {
-                    taskStore.outputs.set(server.server_id, `❌ 执行失败: ${server.error}`);
+                    taskStore.outputs[server.server_id] = `❌ 执行失败: ${server.error}`;
                 } else if (server.output) {
-                    taskStore.outputs.set(server.server_id, server.output);
+                    taskStore.outputs[server.server_id] = server.output;
                 }
             }
         }

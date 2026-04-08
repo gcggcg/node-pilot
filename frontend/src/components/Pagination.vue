@@ -104,6 +104,12 @@ function onPageSizeChange() {
 watch(() => props.currentPage, (val) => {
     jumpPage.value = val;
 });
+
+watch(() => props.pageSize, () => {
+    if (localPageSize.value !== props.pageSize) {
+        localPageSize.value = props.pageSize;
+    }
+});
 </script>
 
 <style scoped>

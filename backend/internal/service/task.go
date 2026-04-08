@@ -190,7 +190,7 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 
 	if e.debug {
 		logger.Debug("[TASK-%d] ========== 任务开始执行 ==========", task.ID)
-		logger.Debug("[TASK-%d] 脚本数量: %d", task.ID, len(scripts))
+		logger.Debug("[TASK-%d] 脚本数量: %d,脚本列表: %+v", task.ID, len(scripts), scripts)
 		for i, s := range scripts {
 			logger.Debug("[TASK-%d]   脚本[%d]: %s -> %s", task.ID, i+1, s.Name, s.TargetPath)
 		}

@@ -346,13 +346,23 @@ func (r *Repository) GetScripts(ids []int64) ([]*model.Script, error) {
 	}
 	defer rows.Close()
 
-	var scripts []*model.Script
+	scriptsByID := make(map[int64]*model.Script)
 	for rows.Next() {
 		s := &model.Script{}
 		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.Content, &s.TargetPath, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, err
 		}
-		scripts = append(scripts, s)
+		scriptsByID[s.ID] = s
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	scripts := make([]*model.Script, 0, len(ids))
+	for _, id := range ids {
+		if s, ok := scriptsByID[id]; ok {
+			scripts = append(scripts, s)
+		}
 	}
 	return scripts, nil
 }

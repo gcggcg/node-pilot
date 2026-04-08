@@ -1,5 +1,21 @@
 import axios from 'axios';
-import type { ServerForm, ScriptForm, TaskForm, PaginatedResponse, PaginationParams, LoginResponse, User, RefreshRequest, UpdateProfileRequest, ChangePasswordRequest, CreateUserRequest, UserListResponse, FileUploadForm, FileUploadListResponse, FileUploadResultResponse } from '@/types';
+import type {
+    ChangePasswordRequest,
+    CreateUserRequest,
+    FileUploadForm,
+    FileUploadListResponse,
+    FileUploadResultResponse,
+    LoginResponse,
+    PaginatedResponse,
+    PaginationParams,
+    RefreshRequest,
+    ScriptForm,
+    ServerForm,
+    TaskForm,
+    UpdateProfileRequest,
+    User,
+    UserListResponse
+} from '@/types';
 
 const api = axios.create({
     baseURL: '/api',
@@ -24,17 +40,17 @@ api.interceptors.response.use(
     response => response.data,
     async (error) => {
         const originalRequest = error.config;
-        
+
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
-            
+
             const refreshToken = localStorage.getItem('refresh_token');
             if (refreshToken) {
                 try {
-                    const response = await api.post<any, LoginResponse>('/v1/auth/refresh', { refresh_token: refreshToken } as RefreshRequest);
+                    const response = await api.post<any, LoginResponse>('/v1/auth/refresh', {refresh_token: refreshToken} as RefreshRequest);
                     localStorage.setItem('access_token', response.access_token);
                     localStorage.setItem('refresh_token', response.refresh_token);
-                    
+
                     originalRequest.headers.Authorization = `Bearer ${response.access_token}`;
                     return api(originalRequest);
                 } catch (refreshError) {
@@ -45,7 +61,7 @@ api.interceptors.response.use(
                 }
             }
         }
-        
+
         const message = error.response?.data?.error || error.message || 'Request failed';
         console.error('API Error:', message);
         return Promise.reject(error);
@@ -69,12 +85,12 @@ export const userApi = {
     },
     create: (data: CreateUserRequest) => api.post('/v1/admin/users', data),
     delete: (id: number) => api.delete(`/v1/admin/users/${id}`),
-    deleteMany: (ids: number[]) => api.post('/v1/admin/users/batch-delete', { ids }),
+    deleteMany: (ids: number[]) => api.post('/v1/admin/users/batch-delete', {ids}),
 };
 
 export const serverApi = {
     list: (params?: PaginationParams) => {
-        const query = params 
+        const query = params
             ? `?page=${params.page || 1}&pageSize=${params.pageSize || 10}`
             : '';
         return api.get<any, PaginatedResponse<any>>(`/servers${query}`);
@@ -83,13 +99,13 @@ export const serverApi = {
     create: (data: ServerForm) => api.post('/servers', data),
     update: (id: number, data: ServerForm) => api.put(`/servers/${id}`, data),
     delete: (id: number) => api.delete(`/servers/${id}`),
-    deleteMany: (ids: number[]) => api.post('/servers/batch-delete', { ids }),
+    deleteMany: (ids: number[]) => api.post('/servers/batch-delete', {ids}),
     test: (id: number) => api.post(`/servers/${id}/test`),
 };
 
 export const scriptApi = {
     list: (params?: PaginationParams) => {
-        const query = params 
+        const query = params
             ? `?page=${params.page || 1}&pageSize=${params.pageSize || 10}`
             : '';
         return api.get<any, PaginatedResponse<any>>(`/scripts${query}`);
@@ -98,12 +114,12 @@ export const scriptApi = {
     create: (data: ScriptForm) => api.post('/scripts', data),
     update: (id: number, data: ScriptForm) => api.put(`/scripts/${id}`, data),
     delete: (id: number) => api.delete(`/scripts/${id}`),
-    deleteMany: (ids: number[]) => api.post('/scripts/batch-delete', { ids }),
+    deleteMany: (ids: number[]) => api.post('/scripts/batch-delete', {ids}),
 };
 
 export const taskApi = {
     list: (params?: PaginationParams) => {
-        const query = params 
+        const query = params
             ? `?page=${params.page || 1}&pageSize=${params.pageSize || 10}`
             : '';
         return api.get<any, PaginatedResponse<any>>(`/tasks${query}`);
@@ -123,7 +139,7 @@ export const taskApi = {
     }),
     execute: (id: number) => api.post(`/tasks/${id}/execute`),
     cancel: (id: number) => api.delete(`/tasks/${id}`),
-    deleteMany: (ids: number[]) => api.post('/tasks/batch-delete', { ids }),
+    deleteMany: (ids: number[]) => api.post('/tasks/batch-delete', {ids}),
 };
 
 export const fileUploadApi = {
@@ -140,7 +156,7 @@ export const fileUploadApi = {
             : '';
         return api.get<any, FileUploadListResponse>(`/v1/file-uploads${query}`);
     },
-    
+
     create: (data: FileUploadForm) => {
         return api.post('/v1/file-uploads', {
             name: data.name,
@@ -149,7 +165,7 @@ export const fileUploadApi = {
             server_ids: data.serverIds
         });
     },
-    
+
     update: (id: number, data: FileUploadForm) => {
         return api.put(`/v1/file-uploads/${id}`, {
             name: data.name,
@@ -158,19 +174,19 @@ export const fileUploadApi = {
             server_ids: data.serverIds
         });
     },
-    
+
     execute: (id: number) => {
         return api.post(`/v1/file-uploads/${id}/execute`);
     },
-    
+
     getResults: (id: number) => {
         return api.get<any, FileUploadResultResponse>(`/v1/file-uploads/${id}/results`);
     },
-    
+
     delete: (ids: number[]) => {
-        return api.delete('/v1/file-uploads', { data: { ids } });
+        return api.delete('/v1/file-uploads', {data: {ids}});
     },
-    
+
     uploadFile: (file: File) => {
         const formData = new FormData();
         formData.append('file', file);

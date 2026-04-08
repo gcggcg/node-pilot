@@ -4,7 +4,7 @@
             共 {{ total }} 条记录，当前 {{ currentPage }}/{{ totalPages }} 页
         </div>
         <div class="pagination-controls">
-            <select v-model="localPageSize" @change="onPageSizeChange" class="page-size-select">
+            <select v-model="localPageSize" @change="onPageSizeChange($event)" class="page-size-select">
                 <option :value="10">10条/页</option>
                 <option :value="20">20条/页</option>
                 <option :value="50">50条/页</option>
@@ -96,9 +96,10 @@ function handleJump() {
     jumpPage.value = props.currentPage;
 }
 
-function onPageSizeChange() {
-    emit('update:pageSize', localPageSize.value);
-    emit('change', { page: 1, pageSize: localPageSize.value });
+function onPageSizeChange(e: Event) {
+    const size = Number((e.target as HTMLSelectElement).value);
+    emit('update:pageSize', size);
+    emit('change', { page: 1, pageSize: size });
 }
 
 watch(() => props.currentPage, (val) => {

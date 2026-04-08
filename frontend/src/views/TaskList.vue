@@ -176,7 +176,6 @@ function toggleAutoRefresh() {
 watch(() => route.query, (query) => {
     pagination.value.page = Number(query.page) || 1;
     pagination.value.pageSize = Number(query.pageSize) || 10;
-    loadData();
 });
 
 function toggleSelectAll() {

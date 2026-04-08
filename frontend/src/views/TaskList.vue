@@ -71,6 +71,9 @@
                         <!-- 输出按钮 -->
                         <router-link :to="`/tasks/${task.id}/output`" class="btn btn-small">输出</router-link>
                         
+                        <!-- 详情按钮 -->
+                        <router-link :to="`/tasks/${task.id}/detail`" class="btn btn-small">详情</router-link>
+                        
                         <!-- 取消按钮（仅 running 状态显示） -->
                         <button
                             v-if="task.status === 'running'"

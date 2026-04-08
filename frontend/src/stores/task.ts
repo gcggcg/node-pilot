@@ -127,6 +127,9 @@ export const useTaskStore = defineStore('task', () => {
     function connectWebSocket(taskId: number) {
         currentTaskId.value = taskId;
         
+        // 清除旧的输出，避免显示之前任务的数据
+        outputs.value.clear();
+        
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
         const wsUrl = `${protocol}//${host}/ws?task_id=${taskId}`;

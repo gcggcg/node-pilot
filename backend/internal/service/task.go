@@ -631,6 +631,10 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 	logger.Debug("----------------------执行命令: %s, [TASK-%d][SERVER-%d][SCRIPT-%d] 执行结果: %s ====================", execCmd, task.ID, srv.ID, scriptIndex, output)
 
 	if len(output) > 0 {
+		// 添加脚本执行头部信息
+		header := fmt.Sprintf("=====正在执行第%d个脚本 [%s]=====\n", scriptIndex, script.Name)
+		fullOutput := header + output
+
 		e.wsHub.BroadcastToTask(&model.WSMessage{
 			Type:         "output",
 			TaskID:       task.ID,
@@ -638,7 +642,9 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			ServerName:   srv.Name,
 			ScriptIndex:  scriptIndex,
 			TotalScripts: totalScripts,
-			Content:      output,
+			ScriptPath:   script.TargetPath,
+			ScriptName:   script.Name,
+			Content:      fullOutput,
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
 	}

@@ -44,7 +44,7 @@ export interface TaskServer {
 }
 
 export interface WSMessage {
-    type: 'output' | 'server_start' | 'server_done' | 'task_start' | 'task_done';
+    type: 'output' | 'server_start' | 'server_done' | 'task_start' | 'task_done' | 'script_start' | 'script_done';
     task_id: number;
     server_id?: number;
     server_name?: string;
@@ -55,6 +55,11 @@ export interface WSMessage {
     total?: number;
     success?: number;
     failed?: number;
+    // Batch script execution fields
+    script_index?: number;
+    total_scripts?: number;
+    script_path?: string;
+    script_name?: string;
 }
 
 export interface ServerForm {

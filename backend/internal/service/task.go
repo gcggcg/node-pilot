@@ -353,41 +353,45 @@ func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Serve
 	}
 	defer client.Close()
 
-	allSuccess := true
 	var totalOutput string
+	finished := time.Now()
 
 	for i, scr := range scripts {
 		if e.IsTaskCancelled(task.ID) {
 			if e.debug {
 				logger.Debug("[TASK-%d][SERVER-%d] 任务被取消，停止执行", task.ID, srv.ID)
 			}
-			allSuccess = false
-			break
+			e.repo.UpdateTaskServerStatus(tsID, "cancelled", totalOutput, "任务被取消", &started, &finished)
+			e.wsHub.BroadcastToTask(&model.WSMessage{
+				Type:       "server_done",
+				TaskID:     task.ID,
+				ServerID:   srv.ID,
+				ServerName: srv.Name,
+				Status:     "cancelled",
+				Content:    totalOutput,
+				Timestamp:  time.Now(),
+			}, uint64(task.ID))
+			return
 		}
 
-		success := e.executeSingleScript(task, srv, scr, client, password, tsID, i+1, len(scripts))
+		success, scriptOutput := e.executeSingleScript(task, srv, scr, client, password, tsID, i+1, len(scripts))
+		totalOutput += scriptOutput
 		if !success {
-			allSuccess = false
-			if e.debug {
-				logger.Error("[TASK-%d][SERVER-%d] 脚本执行失败 (%d/%d): %s", task.ID, srv.ID, i+1, len(scripts), scr.Name)
-			}
-			break
+			// 构建详细错误信息，包含失败的脚本名称和输出
+			errMsg := fmt.Sprintf("=====脚本执行失败=====\n脚本名称: %s\n步骤: %d/%d\n\n%s",
+				scr.Name, i+1, len(scripts), scriptOutput)
+			e.repo.UpdateTaskServerStatus(tsID, "failed", totalOutput, errMsg, &started, &finished)
+			e.wsHub.BroadcastToTask(&model.WSMessage{
+				Type:       "server_done",
+				TaskID:     task.ID,
+				ServerID:   srv.ID,
+				ServerName: srv.Name,
+				Status:     "failed",
+				Content:    totalOutput,
+				Timestamp:  time.Now(),
+			}, uint64(task.ID))
+			return
 		}
-	}
-
-	finished := time.Now()
-	if !allSuccess {
-		e.repo.UpdateTaskServerStatus(tsID, "failed", "", "batch script execution failed", &started, &finished)
-		e.wsHub.BroadcastToTask(&model.WSMessage{
-			Type:       "server_done",
-			TaskID:     task.ID,
-			ServerID:   srv.ID,
-			ServerName: srv.Name,
-			Status:     "failed",
-			Content:    totalOutput,
-			Timestamp:  time.Now(),
-		}, uint64(task.ID))
-		return
 	}
 
 	e.repo.UpdateTaskServerStatus(tsID, "success", totalOutput, "", &started, &finished)
@@ -402,7 +406,7 @@ func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Serve
 	}, uint64(task.ID))
 }
 
-func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, script *model.Script, client *ssh.Client, password string, tsID int64, scriptIndex, totalScripts int) bool {
+func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, script *model.Script, client *ssh.Client, password string, tsID int64, scriptIndex, totalScripts int) (bool, string) {
 	targetDir := filepath.Dir(script.TargetPath)
 	targetFile := script.TargetPath
 
@@ -446,7 +450,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      err.Error(),
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, err.Error()
 	}
 	out, err := session.CombinedOutput(mkdirCmd)
 	session.Close()
@@ -468,7 +472,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      errMsg,
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, errMsg
 	}
 	if e.debug {
 		logger.Debug("[TASK-%d][SERVER-%d] 目录创建成功: %s", task.ID, srv.ID, targetDir)
@@ -496,7 +500,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      err.Error(),
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, err.Error()
 	}
 	f, err := sftpClient.Create(targetFile)
 	if err != nil {
@@ -518,7 +522,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      errMsg,
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, errMsg
 	}
 	_, err = f.Write([]byte(script.Content))
 	f.Close()
@@ -541,7 +545,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      errMsg,
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, errMsg
 	}
 	if e.debug {
 		logger.Debug("[TASK-%d][SERVER-%d] SFTP写入成功!", task.ID, srv.ID)
@@ -569,7 +573,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      err.Error(),
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, err.Error()
 	}
 	out, err = session.CombinedOutput(chmodCmd)
 	session.Close()
@@ -591,7 +595,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      errMsg,
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, errMsg
 	}
 	if e.debug {
 		logger.Debug("[TASK-%d][SERVER-%d] chmod成功!", task.ID, srv.ID)
@@ -618,7 +622,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			Content:      err.Error(),
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, err.Error()
 	}
 	defer session.Close()
 
@@ -667,7 +671,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 			ExitCode:     1,
 			Timestamp:    time.Now(),
 		}, uint64(task.ID))
-		return false
+		return false, output
 	}
 
 	if e.debug {
@@ -688,7 +692,12 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 		ExitCode:     0,
 		Timestamp:    time.Now(),
 	}, uint64(task.ID))
-	return true
+	// 返回脚本输出（包含头部信息）
+	if len(output) > 0 {
+		header := fmt.Sprintf("=====正在执行第%d个脚本 [%s]=====\n", scriptIndex, script.Name)
+		return true, header + output
+	}
+	return true, ""
 }
 
 func (e *TaskExecutor) UploadFile(server *model.Server, password, localPath, remotePath string) error {

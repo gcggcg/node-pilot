@@ -43,25 +43,22 @@ onMounted(async () => {
         const response = await taskApi.get(taskId.value);
         task.value = response.task;
         taskServers.value = response.servers || [];
-        
-        // For running tasks, clear old outputs to avoid stale data
-        if (task.value?.status === 'running') {
-            taskStore.outputs = {};
-        } else {
-            // Pre-populate outputs with stored output from DB for completed tasks
-            for (const server of taskServers.value) {
-                if (server.status === 'failed' && server.error) {
-                    taskStore.outputs[server.server_id] = `❌ 执行失败: ${server.error}`;
-                } else if (server.output) {
-                    taskStore.outputs[server.server_id] = server.output;
-                }
-            }
-        }
     } catch (e) {
         console.error('Failed to load task:', e);
+        return;
     }
 
     taskStore.connectWebSocket(taskId.value);
+
+    if (task.value?.status !== 'running') {
+        for (const server of taskServers.value) {
+            if (server.status === 'failed' && server.error) {
+                taskStore.outputs[server.server_id] = `❌ 执行失败: ${server.error}`;
+            } else if (server.output) {
+                taskStore.outputs[server.server_id] = server.output;
+            }
+        }
+    }
 });
 
 onUnmounted(() => {

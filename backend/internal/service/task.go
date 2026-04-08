@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"node-pilot/internal/config"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -630,7 +631,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 
 	cmdOut, err := session.CombinedOutput(execCmd)
 
-	output := limitLines(string(cmdOut), 100)
+	output := limitLines(string(cmdOut), config.OutPutLimitLines)
 
 	logger.Debug("----------------------执行命令: %s, [TASK-%d][SERVER-%d][SCRIPT-%d] 执行结果: %s ====================", execCmd, task.ID, srv.ID, scriptIndex, output)
 
@@ -676,7 +677,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 
 	if e.debug {
 		logger.Debug("[TASK-%d][SERVER-%d] ========== 脚本执行成功 (%d/%d) ==========", task.ID, srv.ID, scriptIndex, totalScripts)
-		logger.Debug("[TASK-%d][SERVER-%d] 执行输出 (最新50行):\n%s", task.ID, srv.ID, output)
+		logger.Debug("[TASK-%d][SERVER-%d] 执行输出 (最新%d行):\n%s", task.ID, srv.ID, config.OutPutLimitLines, output)
 	}
 	e.wsHub.BroadcastToTask(&model.WSMessage{
 		Type:         "script_done",

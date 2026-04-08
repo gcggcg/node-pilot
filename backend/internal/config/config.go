@@ -5,3 +5,7 @@ type Config struct {
 	Listen string
 	Debug  bool
 }
+
+const (
+	OutPutLimitLines = 100
+)

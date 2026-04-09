@@ -407,7 +407,7 @@ func (r *Repository) DeleteScripts(ids []int64) error {
 }
 
 func (r *Repository) ListTasks() ([]*model.Task, error) {
-	rows, err := r.db.Query(`SELECT id, script_id, script_ids, name, status, created_at, started_at, finished_at FROM tasks ORDER BY id DESC`)
+	rows, err := r.db.Query(`SELECT id, script_id, script_ids, name, status, execution_mode, created_at, started_at, finished_at FROM tasks ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +416,7 @@ func (r *Repository) ListTasks() ([]*model.Task, error) {
 	var tasks []*model.Task
 	for rows.Next() {
 		t := &model.Task{}
-		if err := rows.Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.ExecutionMode, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
 			return nil, err
 		}
 		tasks = append(tasks, t)
@@ -434,7 +434,7 @@ func (r *Repository) ListTasksWithPagination(page, pageSize int) ([]*model.Task,
 	}
 
 	rows, err := r.db.Query(
-		"SELECT id, script_id, script_ids, name, status, created_at, started_at, finished_at FROM tasks ORDER BY id DESC LIMIT ? OFFSET ?",
+		"SELECT id, script_id, script_ids, name, status, execution_mode, created_at, started_at, finished_at FROM tasks ORDER BY id DESC LIMIT ? OFFSET ?",
 		pageSize, offset,
 	)
 	if err != nil {
@@ -445,7 +445,7 @@ func (r *Repository) ListTasksWithPagination(page, pageSize int) ([]*model.Task,
 	var tasks []*model.Task
 	for rows.Next() {
 		t := &model.Task{}
-		if err := rows.Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.ExecutionMode, &t.CreatedAt, &t.StartedAt, &t.FinishedAt); err != nil {
 			return nil, 0, err
 		}
 		tasks = append(tasks, t)
@@ -455,8 +455,8 @@ func (r *Repository) ListTasksWithPagination(page, pageSize int) ([]*model.Task,
 
 func (r *Repository) GetTask(id int64) (*model.Task, error) {
 	t := &model.Task{}
-	err := r.db.QueryRow(`SELECT id, script_id, script_ids, name, status, created_at, started_at, finished_at FROM tasks WHERE id = ?`, id).
-		Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.FinishedAt)
+	err := r.db.QueryRow(`SELECT id, script_id, script_ids, name, status, execution_mode, created_at, started_at, finished_at FROM tasks WHERE id = ?`, id).
+		Scan(&t.ID, &t.ScriptID, &t.ScriptIDs, &t.Name, &t.Status, &t.ExecutionMode, &t.CreatedAt, &t.StartedAt, &t.FinishedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -553,8 +553,14 @@ func (r *Repository) DeleteTaskServers(taskID int64) error {
 	return err
 }
 
-// UpdateTask 更新任务基本信息（名称、脚本ID和批量脚本IDs）
-func (r *Repository) UpdateTask(taskID int64, name string, scriptID int64, scriptIDs string) error {
+// UpdateTask 更新任务基本信息（名称、脚本ID、批量脚本IDs和执行模式）
+func (r *Repository) UpdateTask(taskID int64, name string, scriptID int64, scriptIDs string, executionMode string) error {
+	if executionMode != "" {
+		_, err := r.db.Exec(
+			`UPDATE tasks SET name = ?, script_id = ?, script_ids = ?, execution_mode = ?, updated_at = ? WHERE id = ?`,
+			name, scriptID, scriptIDs, executionMode, time.Now(), taskID)
+		return err
+	}
 	_, err := r.db.Exec(
 		`UPDATE tasks SET name = ?, script_id = ?, script_ids = ?, updated_at = ? WHERE id = ?`,
 		name, scriptID, scriptIDs, time.Now(), taskID)

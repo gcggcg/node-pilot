@@ -371,10 +371,11 @@ func (h *Handler) GetTask(c *gin.Context) {
 }
 
 type CreateTaskInput struct {
-	ScriptID  int64   `json:"script_id"`
-	ScriptIDs string  `json:"script_ids"`
-	Name      string  `json:"name"`
-	ServerIDs []int64 `json:"server_ids"`
+	ScriptID      int64   `json:"script_id"`
+	ScriptIDs     string  `json:"script_ids"`
+	Name          string  `json:"name"`
+	ServerIDs     []int64 `json:"server_ids"`
+	ExecutionMode string  `json:"execution_mode"`
 }
 
 func (h *Handler) CreateTask(c *gin.Context) {
@@ -384,11 +385,21 @@ func (h *Handler) CreateTask(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	logger.Debug("[CreateTask] parsed input: name=%s, script_id=%d, script_ids=%s, server_ids=%v", input.Name, input.ScriptID, input.ScriptIDs, input.ServerIDs)
+	logger.Debug("[CreateTask] parsed input: name=%s, script_id=%d, script_ids=%s, server_ids=%v, execution_mode=%s", input.Name, input.ScriptID, input.ScriptIDs, input.ServerIDs, input.ExecutionMode)
+
+	executionMode := input.ExecutionMode
+	if executionMode == "" {
+		executionMode = "concurrent"
+	}
+	if executionMode != "concurrent" && executionMode != "sequential" {
+		c.JSON(400, gin.H{"error": "invalid execution_mode, must be 'concurrent' or 'sequential'"})
+		return
+	}
 
 	task := &model.Task{
-		Name:   input.Name,
-		Status: "pending",
+		Name:          input.Name,
+		Status:        "pending",
+		ExecutionMode: executionMode,
 	}
 
 	if input.ScriptIDs != "" {
@@ -458,10 +469,11 @@ func (h *Handler) ExecuteTask(c *gin.Context) {
 
 // UpdateTask 更新任务（仅允许 pending 状态的任务）
 type UpdateTaskInput struct {
-	ScriptID  int64   `json:"script_id"`
-	ScriptIDs string  `json:"script_ids"`
-	Name      string  `json:"name"`
-	ServerIDs []int64 `json:"server_ids"`
+	ScriptID      int64   `json:"script_id"`
+	ScriptIDs     string  `json:"script_ids"`
+	Name          string  `json:"name"`
+	ServerIDs     []int64 `json:"server_ids"`
+	ExecutionMode string  `json:"execution_mode"`
 }
 
 func (h *Handler) UpdateTask(c *gin.Context) {
@@ -495,13 +507,12 @@ func (h *Handler) UpdateTask(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	logger.Debug("[UpdateTask] parsed input: name=%s, script_id=%d, script_ids=%s, server_ids=%v", input.Name, input.ScriptID, input.ScriptIDs, input.ServerIDs)
+	logger.Debug("[UpdateTask] parsed input: name=%s, script_id=%d, script_ids=%s, server_ids=%v, execution_mode=%s", input.Name, input.ScriptID, input.ScriptIDs, input.ServerIDs, input.ExecutionMode)
 
 	var scriptIDs string
 	var scriptID int64
 	if input.ScriptIDs != "" {
 		scriptIDs = input.ScriptIDs
-		// 兼容：同时设置 ScriptID 为第一个脚本ID
 		parts := strings.Split(input.ScriptIDs, ",")
 		if len(parts) > 0 {
 			if firstID, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64); err == nil {
@@ -513,9 +524,14 @@ func (h *Handler) UpdateTask(c *gin.Context) {
 		scriptIDs = strconv.FormatInt(input.ScriptID, 10)
 	}
 
-	// 更新任务基本信息
-	logger.Debug("[UpdateTask] updating task basic info: id=%d, name=%s, script_id=%d, script_ids=%s", id, input.Name, scriptID, scriptIDs)
-	if err := h.repo.UpdateTask(id, input.Name, scriptID, scriptIDs); err != nil {
+	executionMode := input.ExecutionMode
+	if executionMode != "" && executionMode != "concurrent" && executionMode != "sequential" {
+		c.JSON(400, gin.H{"error": "invalid execution_mode, must be 'concurrent' or 'sequential'"})
+		return
+	}
+
+	logger.Debug("[UpdateTask] updating task basic info: id=%d, name=%s, script_id=%d, script_ids=%s, execution_mode=%s", id, input.Name, scriptID, scriptIDs, executionMode)
+	if err := h.repo.UpdateTask(id, input.Name, scriptID, scriptIDs, executionMode); err != nil {
 		logger.Error("[UpdateTask] failed to update task: error=%v", err)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

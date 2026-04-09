@@ -129,13 +129,15 @@ export const taskApi = {
         script_id: data.script_id,
         script_ids: data.script_ids || '',
         name: data.name,
-        server_ids: data.server_ids
+        server_ids: data.server_ids,
+        execution_mode: data.execution_mode || 'concurrent'
     }),
     update: (id: number, data: TaskForm) => api.put(`/tasks/${id}`, {
         script_id: data.script_id,
         script_ids: data.script_ids || '',
         name: data.name,
-        server_ids: data.server_ids
+        server_ids: data.server_ids,
+        execution_mode: data.execution_mode || 'concurrent'
     }),
     execute: (id: number) => api.post(`/tasks/${id}/execute`),
     cancel: (id: number) => api.delete(`/tasks/${id}`),

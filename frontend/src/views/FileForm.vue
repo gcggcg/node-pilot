@@ -207,6 +207,18 @@ function onFileSelect(event: Event) {
 }
 
 function validateFile(file: File): string | null {
+    const lowerName = file.name.toLowerCase();
+    // 检查复合扩展名 (.tar.gz, .tar.bz2 等)
+    const compoundExtensions = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tar.zst'];
+    for (const compExt of compoundExtensions) {
+        if (lowerName.endsWith(compExt)) {
+            if (file.size > MAX_FILE_SIZE) {
+                return `文件超过500MB限制: ${file.name}`;
+            }
+            return null;
+        }
+    }
+    // 单扩展名
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
         return `不支持的文件格式: ${file.name}`;

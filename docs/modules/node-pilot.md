@@ -1,95 +1,58 @@
-# NodePilot 项目模块文档
+# node-pilot
 
 ## 项目概述
 
 | 属性 | 值 |
 |------|-----|
-| 项目名称 | NodePilot |
+| 项目名称 | node-pilot |
 | 模块路径 | node-pilot |
-| 编程语言 | Go + TypeScript/Vue3 |
+| 编程语言 | Go + Vue 3 + TypeScript |
 | 仓库路径 | /mnt/e/project/opencode-project/goProject/src/test-dev/node-pilot |
-| GitNexus索引 | ✅ 已索引 (14674 symbols, 39197 relationships, 300 processes) |
-
-> 🚀 批量服务器管理平台 - 一键部署、批量操作、实时监控
-
----
+| 项目类型 | 批量服务器管理平台 |
+| Go版本 | 1.25.7 |
+| 功能简介 | 一键部署、批量操作、实时监控的服务器批量管理平台 |
 
 ## 项目架构图
 
 ```mermaid
 graph TB
-    subgraph Frontend["前端 (Vue 3 + TypeScript)"]
-        UI[View层<br/>Vue Components]
-        Stores[State层<br/>Pinia Stores]
-        API[API层<br/>Axios]
+    subgraph 前端层["前端层 (Vue 3 + TypeScript)"]
+        UI[UI组件<br/>NavBar, OutputPanel<br/>ScriptSelector, Pagination]
+        Views[页面视图<br/>Login, ScriptList, TaskList<br/>ServerList, FileList...]
+        Stores[状态管理<br/>auth, script, task<br/>server, fileupload]
+        Router[路由<br/>auth-guard]
+        API[API封装]
     end
 
-    subgraph Backend["后端 (Go + Gin)"]
-        HTTP[HTTP层<br/>Gin Router]
-        WS[WebSocket层<br/>Gorilla WebSocket]
-        Handler[Handler层<br/>业务处理器]
-        Service[Service层<br/>业务逻辑]
-        Repository[Repository层<br/>数据访问]
-        Auth[认证层<br/>JWT Middleware]
+    subgraph 后端层["后端层 (Go + Gin)"]
+        HTTP[HTTP Handler<br/>auth, user, handler<br/>fileupload]
+        Middleware[中间件<br/>JWTAuth, RequireRole]
+        Service[业务逻辑<br/>task, ssh, fileupload]
+        WebSocket[WebSocket Hub]
+        Repository[数据访问<br/>db]
+        Auth[JWT认证<br/>jwt]
+        Logger[日志<br/>logger]
+        Config[配置<br/>config]
     end
 
-    subgraph Infrastructure["基础设施层"]
-        SSH[SSH服务<br/>golang.org/x/crypto]
-        SFTP[SFTP服务<br/>pkg/sftp]
-        DB[(SQLite<br/>mattn/go-sqlite3)]
-        Crypto[加密服务<br/>AES-256-GCM]
+    subgraph 数据层["数据层"]
+        SQLite[(SQLite<br/>servers.db)]
     end
 
-    Frontend -->|HTTP/WebSocket| Backend
-    Backend --> Service
+    subgraph 外部服务["外部服务"]
+        SSH[(SSH Server<br/>SFTP)]
+        SFTP[(SFTP Server)]
+    end
+
+    前端层 -->|HTTP/WebSocket| 后端层
+    HTTP --> Service
     Service --> Repository
+    Repository --> SQLite
+    Service --> WebSocket
+    WebSocket --> 前端层
     Service --> SSH
     Service --> SFTP
-    Repository --> DB
-    Auth --> Crypto
 ```
-
----
-
-## 技术栈全景图
-
-```mermaid
-flowchart LR
-    subgraph Frontend["前端技术栈"]
-        Vue3[Vue 3.4+]
-        TS[TypeScript]
-        Vite[Vite]
-        Pinia[Pinia]
-        Router[Vue Router]
-        Axios[Axios]
-    end
-
-    subgraph Backend["后端技术栈"]
-        Go[Go 1.21+]
-        Gin[Gin Web Framework]
-        JWT[JWT Auth]
-        WS[Gorilla WebSocket]
-        SQLite[SQLite]
-        SFTP[SFTP]
-    end
-
-    subgraph Security["安全组件"]
-        Bcrypt[bcrypt]
-        AES256[AES-256-GCM]
-        JWTCrypto[JWT/golang-jwt]
-    end
-
-    Frontend --> |REST API| Backend
-    Frontend --> |WebSocket| Backend
-    Backend --> Security
-    Backend --> SQLite
-    Go --> Gin
-    Gin --> WS
-    Go --> JWT
-    Go --> SFTP
-```
-
----
 
 ## 项目结构
 
@@ -97,528 +60,513 @@ flowchart LR
 node-pilot/
 ├── backend/
 │   ├── cmd/server/
-│   │   └── main.go                    # 程序入口
+│   │   └── main.go                 # 程序入口
 │   ├── internal/
 │   │   ├── auth/
-│   │   │   └── jwt.go                  # JWT 工具
+│   │   │   └── jwt.go              # JWT认证
 │   │   ├── config/
-│   │   │   └── config.go               # 配置管理
+│   │   │   └── config.go           # 配置管理
 │   │   ├── handler/
-│   │   │   ├── auth.go                 # 认证处理器
-│   │   │   ├── fileupload.go           # 文件上传处理器
-│   │   │   ├── handler.go              # 通用处理器
-│   │   │   └── user.go                 # 用户管理处理器
-│   │   ├── logger/
-│   │   │   └── logger.go               # 日志管理
+│   │   │   ├── auth.go             # 认证处理器
+│   │   │   ├── user.go             # 用户管理处理器
+│   │   │   ├── fileupload.go        # 文件上传处理器
+│   │   │   └── handler.go           # 通用处理器
 │   │   ├── middleware/
-│   │   │   └── auth.go                 # JWT 认证中间件
+│   │   │   └── auth.go             # JWT认证中间件
 │   │   ├── model/
-│   │   │   └── model.go                # 数据模型
+│   │   │   └── model.go            # 数据模型
 │   │   ├── repository/
-│   │   │   └── db.go                   # 数据库访问
+│   │   │   └── db.go               # 数据库操作
 │   │   ├── service/
-│   │   │   ├── fileupload.go           # 文件上传服务
-│   │   │   ├── ssh.go                  # SSH 连接池
-│   │   │   └── task.go                 # 任务执行器
-│   │   └── websocket/
-│   │       └── hub.go                  # WebSocket Hub
-│   └── web/                            # 嵌入式前端资源
+│   │   │   ├── task.go             # 任务执行器
+│   │   │   ├── ssh.go              # SSH连接池
+│   │   │   └── fileupload.go       # 文件上传服务
+│   │   ├── websocket/
+│   │   │   └── hub.go              # WebSocket Hub
+│   │   └── logger/
+│   │       └── logger.go           # 日志管理
+│   ├── go.mod
+│   └── data/                        # SQLite数据库目录
 ├── frontend/
+│   ├── index.html
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   ├── vite.config.ts
 │   └── src/
-│       ├── api/
-│       │   └── index.ts                # API 封装
-│       ├── components/
-│       │   ├── NavBar.vue              # 导航栏
-│       │   ├── OutputPanel.vue          # 输出面板
-│       │   └── Pagination.vue           # 分页组件
-│       ├── router/
-│       │   ├── auth-guard.ts            # 路由守卫
-│       │   └── index.ts                 # 路由配置
-│       ├── stores/
-│       │   ├── auth.ts                  # 认证状态
-│       │   ├── fileupload.ts            # 文件上传状态
-│       │   ├── script.ts                # 脚本状态
-│       │   ├── server.ts                # 服务器状态
-│       │   └── task.ts                  # 任务状态
-│       ├── types/
-│       │   └── index.ts                 # TypeScript 类型
-│       ├── views/
-│       │   ├── FileForm.vue             # 文件表单
-│       │   ├── FileList.vue             # 文件列表
-│       │   ├── Login.vue                # 登录页
-│       │   ├── Profile.vue              # 个人资料
-│       │   ├── ScriptForm.vue           # 脚本表单
-│       │   ├── ScriptList.vue           # 脚本列表
-│       │   ├── ServerForm.vue           # 服务器表单
-│       │   ├── ServerList.vue           # 服务器列表
-│       │   ├── TaskForm.vue             # 任务表单
-│       │   ├── TaskList.vue             # 任务列表
-│       │   ├── TaskOutput.vue           # 任务输出
-│       │   └── UserList.vue             # 用户列表
+│       ├── main.ts
 │       ├── App.vue
-│       └── main.ts
-├── docs/
-│   └── modules/
-│       └── node-pilot.md               # 本文档
+│       ├── api/
+│       │   └── index.ts            # API封装
+│       ├── components/
+│       │   ├── NavBar.vue
+│       │   ├── OutputPanel.vue
+│       │   ├── Pagination.vue
+│       │   ├── ScriptSelector.vue
+│       │   ├── FileForm.vue
+│       │   ├── FileList.vue
+│       │   ├── Login.vue
+│       │   ├── Profile.vue
+│       │   ├── ScriptForm.vue
+│       │   ├── ScriptList.vue
+│       │   ├── ServerForm.vue
+│       │   ├── ServerList.vue
+│       │   ├── TaskDetail.vue
+│       │   ├── TaskForm.vue
+│       │   ├── TaskList.vue
+│       │   ├── TaskOutput.vue
+│       │   └── UserList.vue
+│       ├── router/
+│       │   ├── index.ts
+│       │   └── auth-guard.ts
+│       ├── stores/
+│       │   ├── auth.ts
+│       │   ├── script.ts
+│       │   ├── task.ts
+│       │   ├── server.ts
+│       │   └── fileupload.ts
+│       └── types/
+│           └── index.ts
 ├── scripts/
-│   └── start.sh                        # 启动脚本
-└── data/
-    └── servers.db                      # SQLite 数据库
+│   └── start.sh
+├── 依赖库.md
+└── README.md
 ```
 
----
+## 组件整体流程图
 
-## 核心模块说明
-
-### Handler 模块
-
-| 结构体 | 文件路径 | 说明 |
-|--------|----------|------|
-| `AuthHandler` | backend/internal/handler/auth.go | 认证处理器 |
-| `Handler` | backend/internal/handler/handler.go | 通用处理器 |
-| `UserHandler` | backend/internal/handler/user.go | 用户管理处理器 |
-| `FileUploadHandler` | backend/internal/handler/fileupload.go | 文件上传处理器 |
-
-### Service 模块
-
-| 结构体 | 文件路径 | 说明 |
-|--------|----------|------|
-| `SSHPool` | backend/internal/service/ssh.go | SSH 连接池 |
-| `TaskExecutor` | backend/internal/service/task.go | 任务执行器 |
-| `FileUploadService` | backend/internal/service/fileupload.go | 文件上传服务 |
-
-### Repository 模块
-
-| 结构体 | 文件路径 | 说明 |
-|--------|----------|------|
-| `Repository` | backend/internal/repository/db.go | 数据库访问层 |
-
-### WebSocket 模块
-
-| 结构体 | 文件路径 | 说明 |
-|--------|----------|------|
-| `Hub` | backend/internal/websocket/hub.go | WebSocket 中心 hub |
-| `Client` | backend/internal/websocket/hub.go | WebSocket 客户端 |
-
----
-
-## 数据结构
-
-| 结构体 | 文件路径 | 说明 |
-|--------|----------|------|
-| `Server` | backend/internal/model/model.go | 服务器模型 |
-| `Script` | backend/internal/model/model.go | 脚本模型 |
-| `Task` | backend/internal/model/model.go | 任务模型 |
-| `User` | backend/internal/model/model.go | 用户模型 |
-| `FileUpload` | backend/internal/model/model.go | 文件上传模型 |
-| `WSMessage` | backend/internal/model/model.go | WebSocket 消息 |
-| `Claims` | backend/internal/auth/jwt.go | JWT Claims |
-| `Config` | backend/internal/config/config.go | 配置结构 |
-
----
-
-## 关键执行流程
-
-### main() 启动流程
+### 主启动流程
 
 ```mermaid
 sequenceDiagram
-    participant main as main()
-    participant Config
+    participant main
+    participant Logger
     participant Repository
-    participant Hub
+    participant SSHPool
+    participant WebSocketHub
+    participant TaskExecutor
+    participant Handler
     participant Gin
     
-    main->>Config: LoadConfig()
-    main->>Repository: NewRepository()
-    main->>Hub: NewHub()
-    main->>Hub: Hub.Run()
-    main->>Gin: SetupRoutes()
-    main->>Gin: Run()
+    main->>Logger: Init(debug)
+    main->>Logger: SetOutput(logFile)
+    main->>Repository: NewDB(dbPath)
+    main->>Repository: NewRepository(db)
+    main->>SSHPool: NewSSHPool()
+    main->>WebSocketHub: NewHub()
+    main->>WebSocketHub: Run() [goroutine]
+    main->>TaskExecutor: NewTaskExecutor(repo, sshPool, wsHub, debug)
+    main->>Handler: NewHandler(repo, sshPool, wsHub, taskSvc)
+    main->>AuthHandler: NewAuthHandler(repo, jwtSecret)
+    main->>UserHandler: NewUserHandler(repo, jwtSecret)
+    main->>FileUploadService: NewFileUploadService(repo, sshPool, filesDir)
+    main->>FileUploadHandler: NewFileUploadHandler(repo, fileUploadService, filesDir)
+    main->>Gin: gin.Default()
+    main->>Gin: 注册路由组 /api/v1/auth
+    main->>Gin: 注册路由组 /api/v1/admin
+    main->>Gin: 注册路由组 /api/servers
+    main->>Gin: 注册路由组 /api/scripts
+    main->>Gin: 注册路由组 /api/tasks
+    main->>Gin: 注册路由组 /api/v1/file-uploads
+    main->>Gin: WebSocket /ws
+    main->>Gin: StaticFS /assets
+    main->>Logger: Info("NodePilot starting on %s", listen)
+    main->>Gin: r.Run(listen)
 ```
 
 ### 任务执行流程
 
 ```mermaid
 sequenceDiagram
-    participant Client as 前端客户端
-    participant Handler as TaskHandler
-    participant Executor as TaskExecutor
-    participant SSHPool as SSHPool
-    participant Target as 目标服务器
+    participant Client
+    participant Gin
+    participant Handler
+    participant TaskExecutor
+    participant SSHPool
+    participant WebSocketHub
+    participant SSHServer
     
-    Client->>Handler: POST /api/tasks
-    Handler->>Executor: ExecuteTask()
-    Executor->>SSHPool: GetClient()
-    SSHPool->>Target: SSH Connect
-    Target-->>SSHPool: Connection OK
-    SSHPool-->>Executor: SSH Client
-    Executor->>Target: Run Script
-    Target-->>Executor: Output Stream
-    Executor-->>Client: WebSocket Output
+    Client->>Gin: POST /api/tasks/:id/execute
+    Gin->>Handler: ExecuteTask
+    Handler->>TaskExecutor: ExecuteTask
+    TaskExecutor->>TaskExecutor: GetTaskServers
+    TaskExecutor->>TaskExecutor: GetScripts
+    TaskExecutor->>SSHPool: GetSSH(serverID)
+    SSHPool-->>TaskExecutor: SSHClient
+    TaskExecutor->>WebSocketHub: BroadcastToTask(server_start)
+    TaskExecutor->>SSHServer: 执行脚本
+    SSHServer-->>TaskExecutor: 输出流
+    TaskExecutor->>WebSocketHub: BroadcastToTask(output)
+    TaskExecutor->>WebSocketHub: BroadcastToTask(server_done)
+    TaskExecutor-->>Handler: TaskResult
+    Handler-->>Client: JSON Response
+    TaskExecutor->>WebSocketHub: BroadcastToTask(task_done)
 ```
 
-### 用户认证流程
+## 完整函数调用链路
+
+### main() 主入口调用链
 
 ```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant Login as Login Handler
-    participant JWT as JWT Service
-    participant DB as Repository
-    
-    User->>Login: POST /api/auth/login
-    Login->>DB: FindUser()
-    DB-->>Login: User Record
-    Login->>JWT: GenerateToken()
-    JWT-->>Login: AccessToken + RefreshToken
-    Login-->>User: {access_token, refresh_token}
+flowchart LR
+    main["main()<br/>backend/cmd/server/main.go"] --> init["logger.Init()<br/>logger.go"]
+    main --> setoutput["logger.SetOutput()<br/>logger.go"]
+    main --> newdb["repository.NewDB()<br/>db.go"]
+    main --> newrepo["repository.NewRepository()<br/>db.go"]
+    main --> newssh["service.NewSSHPool()<br/>ssh.go"]
+    main --> newhub["websocket.NewHub()<br/>hub.go"]
+    main --> runhub["wsHub.Run() [goroutine]<br/>hub.go"]
+    main --> newtask["service.NewTaskExecutor()<br/>task.go"]
+    main --> newhandler["handler.NewHandler()<br/>handler.go"]
+    main --> newauth["handler.NewAuthHandler()<br/>auth.go"]
+    main --> newuser["handler.NewUserHandler()<br/>user.go"]
+    main --> newupload["service.NewFileUploadService()<br/>fileupload.go"]
+    main --> newuphandler["handler.NewFileUploadHandler()<br/>fileupload.go"]
+    main --> gindefault["gin.Default()<br/>Gin"]
+    main --> ginroutes["注册路由组<br/>auth/admin/servers<br/>scripts/tasks<br/>file-uploads/ws"]
+    main --> run["r.Run(listen)<br/>Gin"]
 ```
 
----
-
-## 外部依赖库
-
-### 直接依赖 (Required)
-
-```mermaid
-graph LR
-    subgraph Direct_Deps["直接依赖 (6个)"]
-        Gin[github.com/gin-gonic/gin<br/>v1.12.0]
-        JWT[github.com/golang-jwt/jwt/v5<br/>v5.2.1]
-        WebSocket[github.com/gorilla/websocket<br/>v1.5.3]
-        SQLite[github.com/mattn/go-sqlite3<br/>v1.14.38]
-        SFTP[github.com/pkg/sftp<br/>v1.13.10]
-        Crypto[golang.org/x/crypto<br/>v0.49.0]
-    end
-    
-    Gin --> |Web Framework| App
-    JWT --> |Auth| App
-    WebSocket --> |Real-time| App
-    SQLite --> |Database| App
-    SFTP --> |File Transfer| App
-    Crypto --> |Encryption| App
-```
-
-| 依赖库 | 版本 | 用途 | 许可 |
-|--------|------|------|------|
-| `github.com/gin-gonic/gin` | v1.12.0 | 高性能 HTTP Web 框架 | MIT |
-| `github.com/golang-jwt/jwt/v5` | v5.2.1 | JWT 实现 | BSD-3-Clause |
-| `github.com/gorilla/websocket` | v1.5.3 | WebSocket 实现 | BSD-2-Clause |
-| `github.com/mattn/go-sqlite3` | v1.14.38 | SQLite 数据库驱动 | BSD-3-Clause |
-| `github.com/pkg/sftp` | v1.13.10 | SFTP 客户端实现 | BSD-2-Clause |
-| `golang.org/x/crypto` | v0.49.0 | SSH 和加密库 | BSD-3-Clause |
-
-### 间接依赖 (Indirect)
-
-#### Web 框架相关
-
-| 依赖库 | 版本 | 说明 |
-|--------|------|------|
-| `github.com/bytedance/gopkg` | v0.1.3 | 字节跳动工具库 |
-| `github.com/bytedance/sonic` | v1.15.0 | JSON 序列化 |
-| `github.com/gin-contrib/sse` | v1.1.0 | Gin SSE 支持 |
-| `github.com/goccy/go-json` | v0.10.5 | JSON 编解码 |
-| `github.com/json-iterator/go` | v1.1.12 | JSON 迭代器 |
-| `github.com/ugorji/go/codec` | v1.3.1 | 多格式编解码 |
-
-#### 验证与国际化
-
-| 依赖库 | 版本 | 说明 |
-|--------|------|------|
-| `github.com/go-playground/locales` | v0.14.1 | 本地化支持 |
-| `github.com/go-playground/universal-translator` | v0.18.1 | 通用翻译器 |
-| `github.com/go-playground/validator/v10` | v10.30.1 | 数据验证 |
-
-#### 密码学与安全
-
-| 依赖库 | 版本 | 说明 |
-|--------|------|------|
-| `golang.org/x/crypto` | v0.49.0 | 密码学原语 |
-| `golang.org/x/sys` | v0.42.0 | 系统调用 |
-| `golang.org/x/text` | v0.35.0 | 文本处理 |
-| `golang.org/x/arch` | v0.22.0 | CPU 架构支持 |
-
-#### 网络相关
-
-| 依赖库 | 版本 | 说明 |
-|--------|------|------|
-| `golang.org/x/net` | v0.51.0 | 网络协议 |
-| `google.golang.org/protobuf` | v1.36.10 | Protocol Buffers |
-| `github.com/quic-go/quic-go` | v0.59.0 | QUIC 协议实现 |
-| `github.com/klauspost/cpuid/v2` | v2.3.0 | CORS 头处理 |
-
-#### 云原生相关
-
-| 依赖库 | 版本 | 说明 |
-|--------|------|------|
-| `go.mongodb.org/mongo-driver/v2` | v2.5.0 | MongoDB 驱动 |
-
-#### 其他工具
-
-| 依赖库 | 版本 | 说明 |
-|--------|------|------|
-| `github.com/gabriel-vasile/mimetype` | v1.4.12 | MIME 类型检测 |
-| `github.com/goccy/go-yaml` | v1.19.2 | YAML 解析 |
-| `github.com/leodido/go-urn` | v1.4.0 | URN 解析 |
-| `github.com/mattn/go-isatty` | v0.0.20 | 终端检测 |
-| `github.com/modern-go/concurrent` | v0.0.0 | 并发工具 |
-| `github.com/modern-go/reflect2` | v1.0.2 | 反射增强 |
-| `github.com/pelletier/go-toml/v2` | v2.2.4 | TOML 解析 |
-| `github.com/twitchyliquid64/golang-asm` | v0.15.1 | 原子操作 |
-| `github.com/kr/fs` | v0.1.0 | 文件系统工具 |
-| `github.com/cloudwego/base64x` | v0.1.6 | Base64 编解码 |
-
----
-
-## 依赖关系图谱
+### 核心函数调用关系
 
 ```mermaid
 flowchart TB
-    subgraph Core["核心依赖"]
-        Gin["gin-gonic/gin"]
-        JWT["golang-jwt/jwt"]
-        WS["gorilla/websocket"]
+    subgraph auth["认证模块 (auth)"]
+        GenerateAccessToken["GenerateAccessToken()<br/>jwt.go"] --> Claims["Claims<br/>jwt.go"]
+        ValidateToken["ValidateToken()<br/>jwt.go"] --> Claims
+        HashPassword["HashPassword()<br/>jwt.go"]
+        CheckPassword["CheckPassword()<br/>jwt.go"]
+        JWTAuth["JWTAuth() middleware<br/>auth.go"]
+        RequireRole["RequireRole() middleware<br/>auth.go"]
     end
 
-    subgraph Storage["存储层"]
-        SQLite["mattn/go-sqlite3"]
+    subgraph repository["数据访问层 (repository)"]
+        NewDB["NewDB()<br/>db.go"] --> Repository["Repository<br/>db.go"]
+        NewDB --> migrateSchema["migrateSchema()<br/>db.go"]
+        NewDB --> initSchema["initSchema()<br/>db.go"]
+        NewDB --> InitRootUser["InitRootUser()<br/>db.go"]
     end
 
-    subgraph Network["网络层"]
-        SFTP["pkg/sftp"]
-        Net["golang.org/x/net"]
-        Protobuf["google.golang.org/protobuf"]
-        QUIC["quic-go/quic-go"]
+    subgraph service["业务逻辑层 (service)"]
+        NewTaskExecutor["NewTaskExecutor()<br/>task.go"] --> TaskExecutor["TaskExecutor<br/>task.go"]
+        NewSSHPool["NewSSHPool()<br/>ssh.go"] --> SSHPool["SSHPool<br/>ssh.go"]
+        NewFileUploadService["NewFileUploadService()<br/>fileupload.go"] --> FileUploadService["FileUploadService<br/>fileupload.go"]
     end
 
-    subgraph Security["安全层"]
-        Crypto["golang.org/x/crypto"]
-        Sys["golang.org/x/sys"]
+    subgraph websocket["WebSocket模块"]
+        NewHub["NewHub()<br/>hub.go"] --> Hub["Hub<br/>hub.go"]
     end
 
-    subgraph JSON["JSON处理"]
-        Sonic["bytedance/sonic"]
-        GoJSON["goccy/go-json"]
-        JsonIter["json-iterator/go"]
+    subgraph handler["处理器层 (handler)"]
+        NewHandler["NewHandler()<br/>handler.go"] --> Handler["Handler<br/>handler.go"]
+        NewAuthHandler["NewAuthHandler()<br/>auth.go"] --> AuthHandler["AuthHandler<br/>auth.go"]
+        NewUserHandler["NewUserHandler()<br/>user.go"] --> UserHandler["UserHandler<br/>user.go"]
+        NewFileUploadHandler["NewFileUploadHandler()<br/>fileupload.go"] --> FileUploadHandler["FileUploadHandler<br/>fileupload.go"]
     end
-
-    subgraph Validation["验证层"]
-        Validator["go-playground/validator"]
-        Translator["go-playground/universal-translator"]
-    end
-
-    Gin --> GoJSON
-    Gin --> Validator
-    Gin --> Translator
-    Gin --> Sonic
-    JWT --> Crypto
-    WS --> Gin
-    SQLite --> Sys
-    SFTP --> Crypto
-    Net --> Crypto
-    Protobuf --> Net
 ```
 
----
+## 核心模块说明
 
-## GitNexus 查询提示
+### 后端模块 (Go)
+
+| 模块 | 路径 | 功能说明 |
+|------|------|---------|
+| **Config** | backend/internal/config/config.go | 配置管理，DB路径、监听地址、调试模式 |
+| **Logger** | backend/internal/logger/logger.go | 日志管理，支持调试/信息/警告/错误级别 |
+| **Auth** | backend/internal/auth/jwt.go | JWT令牌生成、验证、密码哈希 |
+| **Middleware** | backend/internal/middleware/auth.go | JWT认证中间件、角色权限校验 |
+| **Repository** | backend/internal/repository/db.go | SQLite数据库操作、schema初始化 |
+| **Service.Task** | backend/internal/service/task.go | 任务执行器、脚本解析、批量执行 |
+| **Service.SSH** | backend/internal/service/ssh.go | SSH连接池管理 |
+| **Service.FileUpload** | backend/internal/service/fileupload.go | 文件上传服务 |
+| **WebSocket** | backend/internal/websocket/hub.go | WebSocket Hub，任务输出实时推送 |
+| **Handler** | backend/internal/handler/*.go | HTTP请求处理器 |
+
+### 前端模块 (Vue 3 + TypeScript)
+
+| 模块 | 路径 | 功能说明 |
+|------|------|---------|
+| **API** | frontend/src/api/index.ts | Axios API封装 |
+| **Router** | frontend/src/router/index.ts | Vue Router配置 |
+| **Auth Guard** | frontend/src/router/auth-guard.ts | 路由守卫，JWT校验 |
+| **Stores** | frontend/src/stores/*.ts | Pinia状态管理 (auth/script/task/server/fileupload) |
+| **Views** | frontend/src/views/*.vue | 页面组件 |
+| **Components** | frontend/src/components/*.vue | 通用UI组件 |
+
+## 关键执行流程
+
+### Main → Init → Server 启动流程
+
+```mermaid
+flowchart TD
+    A["main()<br/>main.go:20"] --> B["flag.Parse()<br/>解析命令行参数"]
+    B --> C["logger.Init(debug)<br/>logger.go"]
+    C --> D["logger.SetOutput()<br/>设置日志输出"]
+    D --> E["os.MkdirAll(dbDir)<br/>创建数据目录"]
+    E --> F["config.Config{}<br/>构建配置对象"]
+    F --> G["repository.NewDB(dbPath)<br/>db.go:62"]
+    G --> H{"err != nil?"}
+    H -->|Yes| I["logger.Error + log.Fatalf"]
+    H -->|No| J["defer db.Close()"]
+    J --> K["repository.NewRepository(db)<br/>db.go:69"]
+    K --> L["service.NewSSHPool()<br/>ssh.go"]
+    L --> M["websocket.NewHub()<br/>hub.go"]
+    M --> N["go wsHub.Run() [goroutine]"]
+    N --> O["service.NewTaskExecutor()<br/>task.go"]
+    O --> P["handler.NewHandler()<br/>handler.go"]
+    P --> Q["handler.NewAuthHandler()<br/>auth.go"]
+    Q --> R["handler.NewUserHandler()<br/>user.go"]
+    R --> S["service.NewFileUploadService()<br/>fileupload.go"]
+    S --> T["handler.NewFileUploadHandler()<br/>fileupload.go"]
+    T --> U["gin.Default()<br/>创建Gin引擎"]
+    U --> V["r.Use() 注册中间件"]
+    V --> W["注册API路由组"]
+    W --> X["r.Run(listen)<br/>启动HTTP服务"]
+```
+
+### 用户登录流程
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gin
+    participant JWTAuth
+    participant AuthHandler
+    participant Repository
+    
+    Client->>Gin: POST /api/v1/auth/login
+    Gin->>AuthHandler: Login(c)
+    AuthHandler->>AuthHandler: 解析LoginRequest
+    AuthHandler->>Repository: GetUserByUsername(username)
+    Repository-->>AuthHandler: User
+    AuthHandler->>AuthHandler: CheckPassword(user.Password, req.Password)
+    AuthHandler->>GenerateAccessToken: 创建AccessToken
+    AuthHandler->>GenerateRefreshToken: 创建RefreshToken
+    AuthHandler-->>Client: LoginResponse{access_token, refresh_token}
+```
+
+### 任务执行流程 (ExecuteTask)
+
+```mermaid
+flowchart TD
+    A["ExecuteTask(c)<br/>handler.go"] --> B["ParseTaskInput()<br/>解析任务输入"]
+    B --> C["GetTaskServers(taskID)<br/>获取任务服务器列表"]
+    C --> D["GetScripts(scriptIDs)<br/>获取脚本内容"]
+    D --> E["for each server in servers"]
+    E --> F["GetSSH(server)<br/>获取SSH连接"]
+    F --> G{"sshPool.getSSH"}
+    G --> H["ExecuteCommand()<br/>执行脚本"]
+    H --> I["ParseScriptIDs()<br/>解析脚本ID"]
+    I --> J["splitLines() 分割输出"]
+    J --> K["limitLines() 限制行数"]
+    K --> L["buildDetailedErrorMsg()<br/>构建错误信息"]
+    L --> M["BroadcastToTask(output)<br/>WebSocket推送"]
+    M --> N{"所有服务器完成?"}
+    N -->|Yes| O["taskDone"]
+    N -->|No| E
+```
+
+## 数据结构
+
+### 核心结构体
+
+| 结构体 | 文件 | 字段说明 |
+|--------|------|---------|
+| **Config** | config.go | DBPath, Listen, Debug, Key, FilesDir |
+| **Claims** | jwt.go | UserID, Username, Role, StandardClaims |
+| **Logger** | logger.go | mu, level, prefix, out, flags |
+| **Repository** | db.go | db *sql.DB |
+| **Hub** | hub.go | clients map[*Client]bool, broadcast chan []byte, register/unregister chan *Client |
+| **Client** | hub.go | hub *Hub, conn *websocket.Conn, send chan []byte |
+| **SSHPool** | ssh.go | sync.Map, servers map[int64]*ssh.Client |
+| **TaskExecutor** | task.go | repo, sshPool, wsHub, debug, cancelMap |
+| **Handler** | handler.go | repo, sshPool, wsHub, taskSvc |
+| **AuthHandler** | auth.go | repo, jwtSecret |
+| **UserHandler** | user.go | repo, jwtSecret |
+| **FileUploadHandler** | fileupload.go | repo, fileUploadSvc, filesDir |
+| **FileUploadService** | fileupload.go | repo, sshPool, filesDir |
+| **User** | model.go | ID, Username, Password, Role, CreatedAt |
+| **Server** | model.go | ID, Name, Host, Port, Username, Password, Tags, Status, CreatedAt |
+| **Script** | model.go | ID, Name, Content, Description, CreatedAt |
+| **Task** | model.go | ID, ScriptID, ServerIDs, Status, CreatedAt |
+| **TaskServer** | model.go | TaskID, ServerID, Output, Status, ExitCode, StartedAt, FinishedAt |
+| **FileUpload** | model.go | ID, Name, Servers, Status, CreatedAt |
+| **FileUploadServer** | model.go | UploadID, ServerID, Status, Result |
+
+### 前端类型
+
+| 类型 | 文件 | 说明 |
+|------|------|------|
+| **User** | types/index.ts | 用户类型 |
+| **Server** | types/index.ts | 服务器类型 |
+| **Script** | types/index.ts | 脚本类型 |
+| **Task** | types/index.ts | 任务类型 |
+| **WSMessage** | types/index.ts | WebSocket消息类型 |
+
+## 外部依赖库
+
+### 直接依赖
+
+| 库名 | 版本 | 用途 |
+|------|------|------|
+| **github.com/gin-gonic/gin** | v1.12.0 | Go HTTP Web框架 |
+| **github.com/golang-jwt/jwt/v5** | v5.2.1 | JWT实现 |
+| **github.com/gorilla/websocket** | v1.5.3 | WebSocket实现 |
+| **github.com/mattn/go-sqlite3** | v1.14.38 | SQLite驱动 |
+| **github.com/pkg/sftp** | v1.13.10 | SFTP客户端 |
+| **golang.org/x/crypto** | v0.49.0 | SSH加密 |
+
+### 间接依赖
+
+| 库名 | 版本 | 说明 |
+|------|------|------|
+| github.com/bytedance/gopkg | v0.1.3 | 字节跳动工具库 |
+| github.com/bytedance/sonic | v1.15.0 | JSON序列化 |
+| github.com/cloudwego/base64x | v0.1.6 | Base64编解码 |
+| github.com/gabriel-vasile/mimetype | v1.4.12 | MIME类型检测 |
+| github.com/gin-contrib/sse | v1.1.0 | Gin SSE支持 |
+| github.com/go-playground/* | - | 表单验证 |
+| github.com/goccy/go-json | v0.10.5 | JSON处理 |
+| github.com/goccy/go-yaml | v1.19.2 | YAML处理 |
+| github.com/json-iterator/go | v1.1.12 | JSON迭代器 |
+| github.com/klauspost/cpuid/v2 | v2.3.0 | CORS支持 |
+| github.com/leodido/go-urn | v1.4.0 | URN处理 |
+| github.com/mattn/go-isatty | v0.0.20 | isatty检测 |
+| github.com/modern-go/* | - | 反射工具 |
+| github.com/pelletier/go-toml/v2 | v2.2.4 | TOML解析 |
+| github.com/quic-go/* | - | QUIC协议 |
+| github.com/twitchyliquid64/golang-asm | v0.15.1 | 原子操作 |
+| github.com/ugorji/go/codec | v1.3.1 | 编解码 |
+| golang.org/x/arch | v0.22.0 | 架构支持 |
+| golang.org/x/net | v0.51.0 | 网络支持 |
+| golang.org/x/sys | v0.42.0 | 系统调用 |
+| golang.org/x/text | v0.35.0 | 文本处理 |
+| google.golang.org/protobuf | v1.36.10 | Protocol Buffers |
+
+### 前端依赖 (package.json)
+
+| 库名 | 说明 |
+|------|------|
+| **Vue 3** | 渐进式JavaScript框架 |
+| **TypeScript** | 类型安全JavaScript |
+| **Vite** | 下一代前端构建工具 |
+| **Pinia** | Vue状态管理 |
+| **Vue Router** | Vue路由管理 |
+| **Axios** | HTTP客户端 |
+
+## GitNexus查询提示（重要！）
 
 ### 按模块查询
 
 | 模块 | 查询命令 |
-|------|----------|
-| **Handler模块** | `gitnexus_query("Handler处理器 认证", repo="node-pilot")` |
-| **Service模块** | `gitnexus_query("Service服务 SSH连接池", repo="node-pilot")` |
-| **Repository模块** | `gitnexus_query("Repository数据库访问", repo="node-pilot")` |
-| **WebSocket模块** | `gitnexus_query("WebSocket Hub实时通信", repo="node-pilot")` |
-| **Auth模块** | `gitnexus_query("Auth认证 JWT中间件", repo="node-pilot")` |
+|------|---------|
+| **认证模块** | `gitnexus_query("auth authentication jwt", repo="node-pilot")` |
+| **处理器模块** | `gitnexus_query("handler http api controller", repo="node-pilot")` |
+| **业务逻辑模块** | `gitnexus_query("service business logic task ssh", repo="node-pilot")` |
+| **数据访问模块** | `gitnexus_query("repository database sqlite db", repo="node-pilot")` |
+| **WebSocket模块** | `gitnexus_query("websocket real-time hub", repo="node-pilot")` |
+| **中间件模块** | `gitnexus_query("middleware auth jwt", repo="node-pilot")` |
 
-### 按结构体查询
+### 按函数名查询
 
 直接使用以下函数名进行精确查询：
 
-```bash
-# 查找 Handler 结构
-gitnexus_context(name="Handler", repo="node-pilot")
-gitnexus_context(name="AuthHandler", repo="node-pilot")
-
-# 查找 Service 结构
-gitnexus_context(name="SSHPool", repo="node-pilot")
-gitnexus_context(name="TaskExecutor", repo="node-pilot")
-gitnexus_context(name="FileUploadService", repo="node-pilot")
-
-# 查找 Model
-gitnexus_context(name="Server", repo="node-pilot")
-gitnexus_context(name="Script", repo="node-pilot")
-gitnexus_context(name="Task", repo="node-pilot")
-gitnexus_context(name="User", repo="node-pilot")
-
-# 查找认证相关
-gitnexus_context(name="Claims", repo="node-pilot")
-gitnexus_context(name="Config", repo="node-pilot")
-```
+| 函数 | 文件 | 查询命令 |
+|------|------|---------|
+| **main** | backend/cmd/server/main.go | `gitnexus_context(name="main", repo="node-pilot")` |
+| **GenerateAccessToken** | backend/internal/auth/jwt.go | `gitnexus_context(name="GenerateAccessToken", repo="node-pilot")` |
+| **ValidateToken** | backend/internal/auth/jwt.go | `gitnexus_context(name="ValidateToken", repo="node-pilot")` |
+| **JWTAuth** | backend/internal/middleware/auth.go | `gitnexus_context(name="JWTAuth", repo="node-pilot")` |
+| **NewDB** | backend/internal/repository/db.go | `gitnexus_context(name="NewDB", repo="node-pilot")` |
+| **NewRepository** | backend/internal/repository/db.go | `gitnexus_context(name="NewRepository", repo="node-pilot")` |
+| **NewTaskExecutor** | backend/internal/service/task.go | `gitnexus_context(name="NewTaskExecutor", repo="node-pilot")` |
+| **NewSSHPool** | backend/internal/service/ssh.go | `gitnexus_context(name="NewSSHPool", repo="node-pilot")` |
+| **NewHub** | backend/internal/websocket/hub.go | `gitnexus_context(name="NewHub", repo="node-pilot")` |
+| **NewHandler** | backend/internal/handler/handler.go | `gitnexus_context(name="NewHandler", repo="node-pilot")` |
+| **NewAuthHandler** | backend/internal/handler/auth.go | `gitnexus_context(name="NewAuthHandler", repo="node-pilot")` |
+| **login** | frontend/src/stores/auth.ts | `gitnexus_context(name="login", repo="node-pilot")` |
+| **fetchTasks** | frontend/src/stores/task.ts | `gitnexus_context(name="fetchTasks", repo="node-pilot")` |
+| **connectWebSocket** | frontend/src/stores/task.ts | `gitnexus_context(name="connectWebSocket", repo="node-pilot")` |
 
 ### 完整调用链查询
 
 ```bash
-# main 函数调用链
-gitnexus_cypher("MATCH (f:Function {name: 'main'})-[:CALLS]->(g) RETURN g.name", repo="node-pilot")
+# 查询main函数的所有调用
+gitnexus_cypher("MATCH (main:Function {name: 'main'})-[:CALLS]->(f) RETURN main.name, f.name, f.filePath", repo="node-pilot")
 
-# Handler 调用链
-gitnexus_cypher("MATCH (f:Function {name: 'Handler'})-[:CALLS]->(g) RETURN g.name", repo="node-pilot")
+# 查询所有CALLS关系
+gitnexus_cypher("MATCH (a:Function)-[r:CodeRelation {type: 'CALLS'}]->(b) RETURN a.name, b.name, a.filePath", repo="node-pilot")
 
-# TaskExecutor 执行链
-gitnexus_cypher("MATCH (f:Function {name: 'TaskExecutor'})-[:CALLS]->(g) RETURN g.name", repo="node-pilot")
+# 查询某个核心函数的调用方
+gitnexus_cypher("MATCH (caller)-[:CALLS]->(callee:Function {name: 'NewDB'}) RETURN caller.name, caller.filePath", repo="node-pilot")
 ```
 
-### 执行流程查询
+### 查找特定社区/模块
 
 ```bash
-# 查询所有已索引的流程
-gitnexus_cypher("MATCH (p:Process) RETURN p.heuristicLabel", repo="node-pilot")
+# 查找所有Handler
+gitnexus_cypher("MATCH (h:Handler) RETURN h.name, h.filePath", repo="node-pilot")
 
-# 查询特定流程
-gitnexus_query("用户登录认证流程", repo="node-pilot")
-gitnexus_query("任务执行流程", repo="node-pilot")
+# 查找所有Service
+gitnexus_cypher("MATCH (s:Service) RETURN s.name, s.filePath", repo="node-pilot")
+
+# 查找所有Struct
+gitnexus_cypher("MATCH (s:Struct) RETURN s.name, s.filePath ORDER BY s.name", repo="node-pilot")
 ```
 
----
+## 执行流程 (Process) 列表
 
-## 核心函数列表
+| 流程名 | 说明 |
+|--------|------|
+| ConnectWebSocket → FetchTasks | WebSocket连接并获取任务 |
+| ExecuteBatch → BroadcastToTask | 批量执行并广播 |
+| ExecuteBatch → CreateTaskServer | 批量执行创建任务服务器 |
+| ExecuteBatch → Debug | 批量执行调试 |
+| ExecuteBatch → IsTaskCancelled | 检查任务是否取消 |
+| ExecuteFileUpload → Decrypt | 文件上传解密 |
+| ExecuteFileUpload → GetFileUploadByID | 获取文件上传信息 |
+| ExecuteFileUpload → GetFileUploadServers | 获取上传服务器 |
+| ExecuteFileUpload → Info | 文件上传日志 |
+| ExecuteTask → BroadcastToTask | 执行任务广播 |
+| ExecuteTask → Debug | 执行任务调试 |
+| ExecuteTask → GetScripts | 获取脚本 |
+| ExecuteTask → GetTaskServers | 获取任务服务器 |
+| ExecuteTask → ParseScriptIDs | 解析脚本ID |
+| GetTaskOutput → GetTaskServers | 获取任务输出 |
+| Login → Logout | 登录登出 |
+| Main → InitRootUser | 初始化Root用户 |
+| Main → InitSchema | 初始化数据库Schema |
+| Main → Logger | 主函数日志 |
+| Main → MigrateSchema | 数据库迁移 |
+| Main → Repository | 主函数仓库 |
+| SetupAuthGuard → Logout | 路由守卫登出 |
+| UpdateProfile → Logout | 更新资料登出 |
+| UpdateTask → GetTaskServers | 更新任务获取服务器 |
 
-### Handler 层
+## 快速开发指南
 
-| 函数名 | 文件路径 | 功能 |
-|--------|----------|------|
-| `AuthHandler.Login` | backend/internal/handler/auth.go | 用户登录 |
-| `AuthHandler.Refresh` | backend/internal/handler/auth.go | 刷新Token |
-| `AuthHandler.Me` | backend/internal/handler/auth.go | 获取当前用户 |
-| `UserHandler.Create` | backend/internal/handler/user.go | 创建用户 |
-| `UserHandler.Delete` | backend/internal/handler/user.go | 删除用户 |
-| `Handler.CreateServer` | backend/internal/handler/handler.go | 创建服务器 |
-| `Handler.CreateScript` | backend/internal/handler/handler.go | 创建脚本 |
-| `Handler.CreateTask` | backend/internal/handler/handler.go | 创建任务 |
-| `FileUploadHandler.Upload` | backend/internal/handler/fileupload.go | 文件上传 |
-
-### Service 层
-
-| 函数名 | 文件路径 | 功能 |
-|--------|----------|------|
-| `NewSSHPool` | backend/internal/service/ssh.go | 创建SSH连接池 |
-| `SSHPool.GetClient` | backend/internal/service/ssh.go | 获取SSH客户端 |
-| `SSHPool.Close` | backend/internal/service/ssh.go | 关闭连接池 |
-| `NewTaskExecutor` | backend/internal/service/task.go | 创建任务执行器 |
-| `TaskExecutor.Execute` | backend/internal/service/task.go | 执行任务 |
-| `TaskExecutor.Cancel` | backend/internal/service/task.go | 取消任务 |
-
-### WebSocket 层
-
-| 函数名 | 文件路径 | 功能 |
-|--------|----------|------|
-| `NewHub` | backend/internal/websocket/hub.go | 创建Hub |
-| `Hub.Run` | backend/internal/websocket/hub.go | 运行Hub |
-| `Hub.Register` | backend/internal/websocket/hub.go | 注册客户端 |
-| `Hub.Unregister` | backend/internal/websocket/hub.go | 注销客户端 |
-| `Hub.Broadcast` | backend/internal/websocket/hub.go | 广播消息 |
-
----
-
-## 安全架构
-
-```mermaid
-flowchart TB
-    subgraph Authentication["认证层"]
-        JWT["JWT Token"]
-        bcrypt["bcrypt Hash"]
-    end
-
-    subgraph Authorization["授权层"]
-        RBAC["基于角色的访问控制"]
-        Admin["ROLE_ADMIN"]
-        User["ROLE_USER"]
-    end
-
-    subgraph Encryption["加密层"]
-        AES256["AES-256-GCM"]
-        SSH["SSH 加密"]
-    end
-
-    subgraph Data_Protection["数据保护"]
-        Sensitive["敏感字段忽略<br/>json:\\"-\\""]
-        Password["密码加密存储"]
-    end
-
-    JWT --> RBAC
-    bcrypt --> Password
-    AES256 --> SSH
-    Sensitive --> Password
-```
-
-### 安全措施
-
-| 安全措施 | 实现 | 说明 |
-|----------|------|------|
-| JWT认证 | `github.com/golang-jwt/jwt/v5` | Access Token (24h) + Refresh Token (7天) |
-| 密码哈希 | `golang.org/x/crypto/bcrypt` | 用户密码安全存储 |
-| 敏感字段保护 | `json:"-"` tag | 不暴露敏感字段 |
-| SSH密码加密 | AES-256-GCM | 密码加密存储 |
-| 路由守卫 | auth-guard.ts | 前端路由权限控制 |
-
----
-
-## 快速开发查询
-
-### 需要修改认证逻辑？
+### 常用开发命令
 
 ```bash
-# 1. 查看认证处理器
-gitnexus_context(name="AuthHandler", repo="node-pilot")
+# 启动后端
+cd backend && go run ./cmd/server/main.go --db ./data/servers.db --listen :8080 --debug
 
-# 2. 查看JWT服务
-gitnexus_context(name="Claims", repo="node-pilot")
+# 启动前端开发服务器
+cd frontend && npm run dev
 
-# 3. 查看中间件
-gitnexus_context(name="Auth", repo="node-pilot")
+# 一键启动
+./scripts/start.sh 0.0.0.0 8080 debug
+
+# 构建前端
+cd frontend && npm run build
+
+# 运行测试
+cd backend && go test ./...
 ```
 
-### 需要修改任务执行？
+### 添加新API端点
 
-```bash
-# 1. 查看任务执行器
-gitnexus_context(name="TaskExecutor", repo="node-pilot")
-
-# 2. 查看SSH连接池
-gitnexus_context(name="SSHPool", repo="node-pilot")
-
-# 3. 查看WebSocket hub
-gitnexus_context(name="Hub", repo="node-pilot")
-```
-
-### 需要添加新API？
-
-```bash
-# 1. 查看现有Handler模式
-gitnexus_context(name="Handler", repo="node-pilot")
-
-# 2. 查看路由注册
-gitnexus_query("路由注册 Gin", repo="node-pilot")
-```
-
----
-
-## 总结
-
-NodePilot 是一个功能完整的批量服务器管理平台，采用现代化的技术栈：
-
-- **前端**: Vue 3 + TypeScript + Pinia + Vite
-- **后端**: Go + Gin + SQLite + WebSocket
-- **安全**: JWT + bcrypt + AES-256-GCM
-- **远程操作**: SSH + SFTP
-
-依赖关系清晰，模块划分明确，便于维护和扩展。
-
----
-
-*文档生成时间: 2026-04-07*
-*基于 GitNexus 知识图谱自动生成*
+1. 在 `handler/` 中添加新的Handler方法
+2. 在 `main.go` 中注册路由
+3. 在前端 `stores/` 中添加状态管理方法
+4. 在前端 `views/` 中添加页面组件

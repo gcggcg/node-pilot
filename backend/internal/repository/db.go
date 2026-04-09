@@ -167,6 +167,10 @@ func migrateSchema(db *sql.DB) error {
 	_, err = db.Exec(`ALTER TABLE tasks ADD COLUMN script_ids TEXT DEFAULT ''`)
 	// Silently ignore if column already exists
 
+	// Add execution_mode column to tasks table for execution mode control
+	_, err = db.Exec(`ALTER TABLE tasks ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'concurrent'`)
+	// Silently ignore if column already exists
+
 	return nil
 }
 

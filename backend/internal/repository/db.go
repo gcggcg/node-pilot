@@ -464,8 +464,12 @@ func (r *Repository) GetTask(id int64) (*model.Task, error) {
 }
 
 func (r *Repository) CreateTask(t *model.Task) (int64, error) {
-	result, err := r.db.Exec(`INSERT INTO tasks (script_id, script_ids, name, status) VALUES (?, ?, ?, ?)`,
-		t.ScriptID, t.ScriptIDs, t.Name, t.Status)
+	executionMode := t.ExecutionMode
+	if executionMode == "" {
+		executionMode = "concurrent"
+	}
+	result, err := r.db.Exec(`INSERT INTO tasks (script_id, script_ids, name, status, execution_mode) VALUES (?, ?, ?, ?, ?)`,
+		t.ScriptID, t.ScriptIDs, t.Name, t.Status, executionMode)
 	if err != nil {
 		return 0, err
 	}

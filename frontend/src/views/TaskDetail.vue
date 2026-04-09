@@ -21,6 +21,10 @@
                         <span :class="['status-badge', task.status]">{{ statusText(task.status) }}</span>
                     </div>
                     <div class="info-item">
+                        <label>执行模式</label>
+                        <span :class="['mode-badge', task.execution_mode]">{{ executionModeText(task.execution_mode) }}</span>
+                    </div>
+                    <div class="info-item">
                         <label>创建时间</label>
                         <span>{{ formatDate(task.created_at) }}</span>
                     </div>
@@ -126,6 +130,14 @@ function statusText(status: string): string {
     return statusMap[status] || status;
 }
 
+function executionModeText(mode: string): string {
+    const modeMap: Record<string, string> = {
+        'concurrent': '并发执行',
+        'sequential': '单线程执行'
+    };
+    return modeMap[mode] || mode;
+}
+
 function serverStatusText(status: string): string {
     const statusMap: Record<string, string> = {
         'pending': '等待中',
@@ -211,6 +223,17 @@ h1 {
 .status-badge.completed { background: #d4edda; color: #155724; }
 .status-badge.cancelled { background: #fff3cd; color: #856404; }
 .status-badge.failed { background: #f8d7da; color: #721c24; }
+
+.mode-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    width: fit-content;
+}
+
+.mode-badge.concurrent { background: #e3f2fd; color: #1565c0; }
+.mode-badge.sequential { background: #fff3e0; color: #e65100; }
 
 .script-list, .server-list {
     display: flex;

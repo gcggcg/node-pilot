@@ -1,12 +1,12 @@
 {
   "wait": [
-    "03-backend-service-execution-mode.md",
     "04-frontend-types.md",
     "05-frontend-api.md",
     "06-frontend-taskform-ui.md"
   ],
-  "running": "02-backend-handler-inputs.md",
+  "running": "03-backend-service-execution-mode.md",
   "succeed": [
-    "01-backend-model-db-migration.md"
+    "01-backend-model-db-migration.md",
+    "02-backend-handler-inputs.md"
   ]
 }

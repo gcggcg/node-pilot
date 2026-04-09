@@ -213,9 +213,24 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 		Timestamp:    time.Now(),
 	}, uint64(task.ID))
 
+	executionMode := task.ExecutionMode
+	if executionMode == "" {
+		executionMode = "concurrent"
+	}
+
+	if e.debug {
+		logger.Debug("[TASK-%d] 执行模式: %s", task.ID, executionMode)
+	}
+
+	if executionMode == "sequential" {
+		e.executeSequential(task, scripts, servers, password, serverTaskServerMap)
+	} else {
+		e.executeConcurrent(task, scripts, servers, password, serverTaskServerMap)
+	}
+}
+
+func (e *TaskExecutor) executeConcurrent(task *model.Task, scripts []*model.Script, servers []*model.Server, password string, serverTaskServerMap map[int64]int64) {
 	batchSize := 10
-	success := 0
-	failed := 0
 	wasCancelled := false
 
 	for i := 0; i < len(servers); i += batchSize {
@@ -243,7 +258,54 @@ func (e *TaskExecutor) ExecuteScript(task *model.Task, script *model.Script, ser
 		e.cancelledTasks.Delete(task.ID)
 	}
 
+	e.finalizeTask(task, servers, wasCancelled)
+}
+
+func (e *TaskExecutor) executeSequential(task *model.Task, scripts []*model.Script, servers []*model.Server, password string, serverTaskServerMap map[int64]int64) {
+	wasCancelled := false
+
+	for i, srv := range servers {
+		if e.IsTaskCancelled(task.ID) {
+			wasCancelled = true
+			if e.debug {
+				logger.Debug("[TASK-%d] 单线程模式：任务被取消，停止执行", task.ID)
+			}
+			break
+		}
+
+		if e.debug {
+			logger.Debug("[TASK-%d] 单线程模式：正在执行第 %d/%d 个服务器: %s", task.ID, i+1, len(servers), srv.Name)
+		}
+
+		success := e.executeScriptsOnServer(task, srv, scripts, password, serverTaskServerMap)
+
+		if !success {
+			if e.debug {
+				logger.Debug("[TASK-%d] 单线程模式：服务器 %s 执行失败，终止后续服务器", task.ID, srv.Name)
+			}
+
+			for j := i + 1; j < len(servers); j++ {
+				remainingSrv := servers[j]
+				if tsID, ok := serverTaskServerMap[remainingSrv.ID]; ok {
+					finished := time.Now()
+					e.repo.UpdateTaskServerStatus(tsID, "skipped", "", "前置服务器执行失败，跳过", nil, &finished)
+				}
+			}
+			break
+		}
+	}
+
+	if wasCancelled {
+		e.cancelledTasks.Delete(task.ID)
+	}
+
+	e.finalizeTask(task, servers, wasCancelled)
+}
+
+func (e *TaskExecutor) finalizeTask(task *model.Task, servers []*model.Server, wasCancelled bool) {
 	taskServers, _ := e.repo.GetTaskServers(task.ID)
+	success := 0
+	failed := 0
 	for _, ts := range taskServers {
 		if ts.Status == "success" {
 			success++
@@ -294,7 +356,7 @@ func (e *TaskExecutor) executeBatch(task *model.Task, scripts []*model.Script, s
 	wg.Wait()
 }
 
-func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Server, scripts []*model.Script, password string, serverTaskServerMap map[int64]int64) {
+func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Server, scripts []*model.Script, password string, serverTaskServerMap map[int64]int64) bool {
 	started := time.Now()
 
 	if e.debug {
@@ -347,7 +409,7 @@ func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Serve
 			Content:    err.Error(),
 			Timestamp:  time.Now(),
 		}, uint64(task.ID))
-		return
+		return false
 	}
 	if e.debug {
 		logger.Debug("[TASK-%d][SERVER-%d] SSH连接成功!", task.ID, srv.ID)
@@ -372,13 +434,12 @@ func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Serve
 				Content:    totalOutput,
 				Timestamp:  time.Now(),
 			}, uint64(task.ID))
-			return
+			return false
 		}
 
 		success, scriptOutput := e.executeSingleScript(task, srv, scr, client, password, tsID, i+1, len(scripts))
 		totalOutput += scriptOutput
 		if !success {
-			// 构建详细错误信息，包含失败的脚本名称和输出
 			errMsg := fmt.Sprintf("=====脚本执行失败=====\n脚本名称: %s\n步骤: %d/%d\n\n%s",
 				scr.Name, i+1, len(scripts), scriptOutput)
 			e.repo.UpdateTaskServerStatus(tsID, "failed", totalOutput, errMsg, &started, &finished)
@@ -391,7 +452,7 @@ func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Serve
 				Content:    totalOutput,
 				Timestamp:  time.Now(),
 			}, uint64(task.ID))
-			return
+			return false
 		}
 	}
 
@@ -405,6 +466,7 @@ func (e *TaskExecutor) executeScriptsOnServer(task *model.Task, srv *model.Serve
 		Content:    totalOutput,
 		Timestamp:  time.Now(),
 	}, uint64(task.ID))
+	return true
 }
 
 func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, script *model.Script, client *ssh.Client, password string, tsID int64, scriptIndex, totalScripts int) (bool, string) {

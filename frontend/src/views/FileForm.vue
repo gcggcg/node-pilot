@@ -17,7 +17,7 @@
                     type="file" 
                     ref="fileInput" 
                     multiple
-                    accept=".tar,.sh,.zip,.conf,.txt,.json,.yml,.xml,.log,.sql"
+                    accept=".tar,.tar.gz,.tgz,.sh,.zip,.conf,.txt,.json,.yml,.xml,.log,.sql"
                     @change="onFileSelect"
                     style="display: none"
                 />
@@ -31,7 +31,7 @@
                     <div v-if="form.files.length === 0" class="upload-placeholder" @click="triggerFileSelect">
                         <span class="upload-icon">📁</span>
                         <p>点击选择文件或拖拽文件到此处</p>
-                        <p class="hint">支持 .tar, .sh, .zip, .conf, .txt, .json, .yml, .xml, .log, .sql 文件，单文件不超过 500MB，最多 20 个文件</p>
+                        <p class="hint">支持 .tar, .tar.gz, .tgz, .sh, .zip, .conf, .txt, .json, .yml, .xml, .log, .sql 文件，单文件不超过 500MB，最多 20 个文件</p>
                     </div>
                     
                     <div v-else class="file-list">
@@ -166,7 +166,7 @@ const filteredServers = computed(() => {
     );
 });
 
-const ALLOWED_EXTENSIONS = ['.tar', '.sh', '.zip', '.conf', '.txt', '.json', '.yml', '.xml', '.log', '.sql'];
+const ALLOWED_EXTENSIONS = ['.tar', '.tar.gz', '.tgz', '.sh', '.zip', '.conf', '.txt', '.json', '.yml', '.xml', '.log', '.sql'];
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 const MAX_FILES = 20;
 const MAX_SERVERS = 10;

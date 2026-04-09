@@ -26,6 +26,7 @@ export interface Task {
     script_ids: string;
     name: string;
     status: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';
+    execution_mode: 'concurrent' | 'sequential';
     created_at: string;
     started_at?: string;
     finished_at?: string;
@@ -82,6 +83,7 @@ export interface TaskForm {
     script_ids?: string;
     name: string;
     server_ids: number[];
+    execution_mode: 'concurrent' | 'sequential';
 }
 
 export interface PaginatedResponse<T> {

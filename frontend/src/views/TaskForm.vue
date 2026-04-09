@@ -60,6 +60,30 @@
                 <div class="hint-text">最多选择 10 台服务器</div>
             </div>
 
+            <div class="form-group">
+                <label>执行模式</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input 
+                            type="radio" 
+                            v-model="form.execution_mode" 
+                            value="concurrent"
+                        />
+                        <span>并发执行</span>
+                        <span class="hint">多个服务器同时执行脚本</span>
+                    </label>
+                    <label class="radio-label">
+                        <input 
+                            type="radio" 
+                            v-model="form.execution_mode" 
+                            value="sequential"
+                        />
+                        <span>单线程执行</span>
+                        <span class="hint">按顺序执行，失败时终止后续服务器</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="actions">
                 <button 
                     type="submit" 
@@ -93,7 +117,8 @@ const form = ref({
     name: '',
     script_id: '' as number | '',
     script_ids: '',
-    server_ids: [] as number[]
+    server_ids: [] as number[],
+    execution_mode: 'concurrent' as 'concurrent' | 'sequential'
 });
 
 const selectedScriptIds = ref<number[]>([]);
@@ -178,6 +203,7 @@ onMounted(async () => {
                 selectedScriptIds.value = [res.task.script_id];
             }
             form.value.server_ids = res.servers?.map((s: any) => s.server_id) || [];
+            form.value.execution_mode = res.task.execution_mode || 'concurrent';
         } catch (e) {
             alert('加载任务失败');
             router.push('/tasks');
@@ -199,7 +225,8 @@ async function handleSubmit() {
     try {
         const payload: any = {
             name: form.value.name,
-            server_ids: form.value.server_ids
+            server_ids: form.value.server_ids,
+            execution_mode: form.value.execution_mode
         };
         
         if (selectedScriptIds.value.length > 0) {
@@ -387,6 +414,43 @@ h1 {
     padding: 16px;
     text-align: center;
     color: #999;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.radio-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #e9ecef;
+}
+
+.radio-label:hover {
+    background: #e9ecef;
+}
+
+.radio-label input[type="radio"] {
+    margin-top: 3px;
+}
+
+.radio-label span:first-of-type {
+    font-weight: 500;
+    color: #333;
+}
+
+.radio-label .hint {
+    display: block;
+    font-size: 12px;
+    color: #999;
+    font-weight: normal;
 }
 
 .actions {

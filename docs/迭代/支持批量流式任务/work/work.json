@@ -1,6 +1,6 @@
 {
   "wait": [],
-  "running": null,
+  "running": "",
   "succeed": [
     "01-database-model.md",
     "02-repository-methods.md",

@@ -689,7 +689,7 @@ func (e *TaskExecutor) executeSingleScript(task *model.Task, srv *model.Server, 
 	}
 	defer session.Close()
 
-	execCmd := fmt.Sprintf("cd %s && /bin/bash %s", targetDir, targetFile)
+	execCmd := fmt.Sprintf("cd %s && sudo /bin/bash %s", targetDir, targetFile)
 
 	cmdOut, err := session.CombinedOutput(execCmd)
 

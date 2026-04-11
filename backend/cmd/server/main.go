@@ -149,11 +149,12 @@ func main() {
 			tasks.GET("/:id/output", h.GetTaskOutput)
 		}
 
-		api.POST("/upload", middleware.JWTAuth(jwtSecret), h.UploadFile)
-		api.POST("/deploy", middleware.JWTAuth(jwtSecret), h.DeployFile)
+		api.POST("/upload", middleware.JWTAuth(jwtSecret), middleware.RequireRole("ROLE_ADMIN"), h.UploadFile)
+		api.POST("/deploy", middleware.JWTAuth(jwtSecret), middleware.RequireRole("ROLE_ADMIN"), h.DeployFile)
 
 		fileUploads := api.Group("/v1/file-uploads")
 		fileUploads.Use(middleware.JWTAuth(jwtSecret))
+		fileUploads.Use(middleware.RequireRole("ROLE_ADMIN"))
 		{
 			fileUploads.GET("", fileUploadHandler.ListFileUploads)
 			fileUploads.POST("", fileUploadHandler.CreateFileUpload)
@@ -163,7 +164,7 @@ func main() {
 			fileUploads.GET("/:id/results", fileUploadHandler.GetFileUploadResults)
 		}
 
-		api.POST("/v1/file-uploads/upload-file", fileUploadHandler.UploadFileToStorage)
+		api.POST("/v1/file-uploads/upload-file", middleware.JWTAuth(jwtSecret), middleware.RequireRole("ROLE_ADMIN"), fileUploadHandler.UploadFileToStorage)
 	}
 
 	r.GET("/ws", h.WebSocketHandler)

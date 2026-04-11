@@ -124,16 +124,21 @@ func main() {
 			servers.POST("/:id/test", h.TestServerConnection)
 		}
 
-		scripts := api.Group("/scripts")
-		scripts.Use(middleware.JWTAuth(jwtSecret))
-		scripts.Use(middleware.RequireRole("ROLE_ADMIN"))
+		scriptsRead := api.Group("/scripts")
+		scriptsRead.Use(middleware.JWTAuth(jwtSecret))
 		{
-			scripts.GET("", h.ListScripts)
-			scripts.GET("/:id", h.GetScript)
-			scripts.POST("", h.CreateScript)
-			scripts.PUT("/:id", h.UpdateScript)
-			scripts.DELETE("/:id", h.DeleteScript)
-			scripts.POST("/batch-delete", h.DeleteScripts)
+			scriptsRead.GET("", h.ListScripts)
+			scriptsRead.GET("/:id", h.GetScript)
+		}
+
+		scriptsWrite := api.Group("/scripts")
+		scriptsWrite.Use(middleware.JWTAuth(jwtSecret))
+		scriptsWrite.Use(middleware.RequireRole("ROLE_ADMIN"))
+		{
+			scriptsWrite.POST("", h.CreateScript)
+			scriptsWrite.PUT("/:id", h.UpdateScript)
+			scriptsWrite.DELETE("/:id", h.DeleteScript)
+			scriptsWrite.POST("/batch-delete", h.DeleteScripts)
 		}
 
 		tasks := api.Group("/tasks")

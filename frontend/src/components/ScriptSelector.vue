@@ -1,5 +1,5 @@
 <template>
-    <div class="script-selector" v-if="authStore.isAdmin">
+    <div class="script-selector">
         <div class="selected-scripts" v-if="selectedIds.length > 0">
             <span v-for="sid in selectedIds" :key="sid" class="script-tag">
                 {{ getScriptName(sid) }}
@@ -46,15 +46,11 @@
             </button>
         </div>
     </div>
-    <div v-else class="no-permission">
-        <p>您没有权限管理脚本</p>
-    </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useScriptStore } from '@/stores/script';
-import { useAuthStore } from '@/stores/auth';
 import type { Script } from '@/types';
 
 interface Props {
@@ -74,7 +70,6 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>();
 
 const scriptStore = useScriptStore();
-const authStore = useAuthStore();
 const selectedIds = ref<number[]>([...props.modelValue]); // 初始化为传入值
 const search = ref('');
 const showDropdown = ref(false);
@@ -136,7 +131,6 @@ async function loadScripts() {
 }
 
 onMounted(() => {
-    if (!authStore.isAdmin) return;
     loadScripts();
     document.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
@@ -288,15 +282,5 @@ onMounted(() => {
 
 .clear-btn:hover {
     text-decoration: underline;
-}
-
-.no-permission {
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 6px;
-    color: #999;
-    font-size: 14px;
-    text-align: center;
-    border: 1px dashed #ddd;
 }
 </style>

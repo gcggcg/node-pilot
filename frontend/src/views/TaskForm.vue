@@ -10,17 +10,13 @@
                 <input v-model="form.name" type="text" required placeholder="例如: 批量部署-1" />
             </div>
 
-            <div class="form-group" v-if="authStore.isAdmin">
+            <div class="form-group">
                 <label>脚本 (支持批量)</label>
                 <ScriptSelector 
                     v-model="selectedScriptIds"
                     multiple
                     placeholder="选择要执行的脚本（可多选）"
                 />
-            </div>
-            <div class="form-group" v-else>
-                <label>脚本</label>
-                <div class="readonly-hint">普通用户无法选择脚本，请联系管理员</div>
             </div>
 
             <div class="form-group">
@@ -108,7 +104,6 @@ import { useRouter, useRoute } from 'vue-router';
 import { useTaskStore } from '@/stores/task';
 import { useScriptStore } from '@/stores/script';
 import { useServerStore } from '@/stores/server';
-import { useAuthStore } from '@/stores/auth';
 import ScriptSelector from '@/components/ScriptSelector.vue';
 import type { Server } from '@/types';
 
@@ -117,7 +112,6 @@ const route = useRoute();
 const store = useTaskStore();
 const scriptStore = useScriptStore();
 const serverStore = useServerStore();
-const authStore = useAuthStore();
 
 const form = ref({
     name: '',
@@ -135,12 +129,8 @@ const showServerDropdown = ref(false);
 const servers = ref<Server[]>([]);
 
 const isFormValid = computed(() => {
-    if (authStore.isAdmin) {
-        const hasScripts = selectedScriptIds.value.length > 0 || form.value.script_id;
-        return form.value.name.trim() && hasScripts && form.value.server_ids.length > 0;
-    } else {
-        return form.value.name.trim() && form.value.server_ids.length > 0;
-    }
+    const hasScripts = selectedScriptIds.value.length > 0 || form.value.script_id;
+    return form.value.name.trim() && hasScripts && form.value.server_ids.length > 0;
 });
 
 const scriptIdsString = computed(() => {
@@ -237,9 +227,9 @@ async function handleSubmit() {
             execution_mode: form.value.execution_mode
         };
         
-        if (authStore.isAdmin && selectedScriptIds.value.length > 0) {
+        if (selectedScriptIds.value.length > 0) {
             payload.script_ids = scriptIdsString.value;
-        } else if (authStore.isAdmin && form.value.script_id) {
+        } else if (form.value.script_id) {
             payload.script_id = Number(form.value.script_id);
         }
         
@@ -488,14 +478,5 @@ h1 {
 .btn-secondary {
     background: #e9ecef;
     color: #495057;
-}
-
-.readonly-hint {
-    padding: 10px 12px;
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-    border-radius: 6px;
-    color: #856404;
-    font-size: 14px;
 }
 </style>

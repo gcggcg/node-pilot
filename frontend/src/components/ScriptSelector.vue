@@ -136,6 +136,7 @@ async function loadScripts() {
 }
 
 onMounted(() => {
+    if (!authStore.isAdmin) return;
     loadScripts();
     document.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;

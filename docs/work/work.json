@@ -3,6 +3,6 @@
     "02-backend-file-admin-control.md",
     "03-frontend-permission-control.md"
   ],
-  "running": "02-backend-file-admin-control.md",
-  "succeed": ["01-backend-script-admin-control.md"]
+  "running": "03-frontend-permission-control.md",
+  "succeed": ["01-backend-script-admin-control.md", "02-backend-file-admin-control.md"]
 }

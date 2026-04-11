@@ -3,8 +3,8 @@
         <div class="logo" @click="router.push('/')">NodePilot</div>
         <nav class="nav-links" v-if="authStore.isLoggedIn">
             <router-link to="/servers" class="nav-link">服务器</router-link>
-            <router-link to="/files" class="nav-link">文件</router-link>
-            <router-link to="/scripts" class="nav-link">脚本</router-link>
+            <router-link to="/files" class="nav-link" v-if="authStore.isAdmin">文件</router-link>
+            <router-link to="/scripts" class="nav-link" v-if="authStore.isAdmin">脚本</router-link>
             <router-link to="/tasks" class="nav-link">任务</router-link>
             <router-link to="/users" class="nav-link" v-if="authStore.isAdmin">用户</router-link>
             <router-link to="/profile" class="nav-link">个人</router-link>

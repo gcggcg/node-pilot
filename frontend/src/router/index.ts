@@ -32,24 +32,24 @@ const router = createRouter({
             component: () => import('@/views/ServerForm.vue'),
             meta: { requiresAuth: true }
         },
-        {
-            path: '/scripts',
-            name: 'scripts',
-            component: () => import('@/views/ScriptList.vue'),
-            meta: { requiresAuth: true }
-        },
-        {
-            path: '/scripts/new',
-            name: 'script-new',
-            component: () => import('@/views/ScriptForm.vue'),
-            meta: { requiresAuth: true }
-        },
-        {
-            path: '/scripts/:id/edit',
-            name: 'script-edit',
-            component: () => import('@/views/ScriptForm.vue'),
-            meta: { requiresAuth: true }
-        },
+            {
+                path: '/scripts',
+                name: 'scripts',
+                component: () => import('@/views/ScriptList.vue'),
+                meta: { requiresAuth: true, requiresAdmin: true }
+            },
+            {
+                path: '/scripts/new',
+                name: 'script-new',
+                component: () => import('@/views/ScriptForm.vue'),
+                meta: { requiresAuth: true, requiresAdmin: true }
+            },
+            {
+                path: '/scripts/:id/edit',
+                name: 'script-edit',
+                component: () => import('@/views/ScriptForm.vue'),
+                meta: { requiresAuth: true, requiresAdmin: true }
+            },
         {
             path: '/tasks',
             name: 'tasks',
@@ -92,24 +92,24 @@ const router = createRouter({
             component: () => import('@/views/Profile.vue'),
             meta: { requiresAuth: true }
         },
-        {
-            path: '/files',
-            name: 'files',
-            component: () => import('@/views/FileList.vue'),
-            meta: { requiresAuth: true }
-        },
-        {
-            path: '/files/new',
-            name: 'file-new',
-            component: () => import('@/views/FileForm.vue'),
-            meta: { requiresAuth: true }
-        },
-        {
-            path: '/files/:id/edit',
-            name: 'file-edit',
-            component: () => import('@/views/FileForm.vue'),
-            meta: { requiresAuth: true }
-        },
+            {
+                path: '/files',
+                name: 'files',
+                component: () => import('@/views/FileList.vue'),
+                meta: { requiresAuth: true, requiresAdmin: true }
+            },
+            {
+                path: '/files/new',
+                name: 'file-new',
+                component: () => import('@/views/FileForm.vue'),
+                meta: { requiresAuth: true, requiresAdmin: true }
+            },
+            {
+                path: '/files/:id/edit',
+                name: 'file-edit',
+                component: () => import('@/views/FileForm.vue'),
+                meta: { requiresAuth: true, requiresAdmin: true }
+            },
     ]
 });
 

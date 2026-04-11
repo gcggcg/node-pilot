@@ -1,0 +1,8 @@
+{
+  "wait": [
+    "02-backend-file-admin-control.md",
+    "03-frontend-permission-control.md"
+  ],
+  "running": "01-backend-script-admin-control.md",
+  "succeed": []
+}

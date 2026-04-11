@@ -126,6 +126,7 @@ func main() {
 
 		scripts := api.Group("/scripts")
 		scripts.Use(middleware.JWTAuth(jwtSecret))
+		scripts.Use(middleware.RequireRole("ROLE_ADMIN"))
 		{
 			scripts.GET("", h.ListScripts)
 			scripts.GET("/:id", h.GetScript)

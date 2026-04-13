@@ -99,7 +99,7 @@
             </form>
 
             <div class="system-info">
-                <span class="version">v1.0.0</span>
+                <span class="version">v1.1.0</span>
                 <span class="status-indicator"></span>
                 <span class="status-text">系统就绪</span>
             </div>

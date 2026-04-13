@@ -1,8 +1,8 @@
 {
-  "wait": [
+  "wait": [],
+  "running": "",
+  "succeed": [
     "01-update-login-version.md",
     "02-update-readme-ai-description.md"
-  ],
-  "running": "",
-  "succeed": []
+  ]
 }

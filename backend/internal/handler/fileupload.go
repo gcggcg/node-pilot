@@ -172,6 +172,11 @@ func (h *FileUploadHandler) UpdateFileUpload(c *gin.Context) {
 		return
 	}
 
+	if fu.Status == "running" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "任务正在执行中，无法编辑"})
+		return
+	}
+
 	if input.Name != "" {
 		fu.Name = input.Name
 	}
@@ -181,6 +186,8 @@ func (h *FileUploadHandler) UpdateFileUpload(c *gin.Context) {
 	if input.RemotePath != "" {
 		fu.RemotePath = input.RemotePath
 	}
+
+	fu.Status = "pending"
 
 	if err := h.repo.UpdateFileUpload(fu); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

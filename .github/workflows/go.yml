@@ -63,9 +63,9 @@ jobs:
     
     - name: Build binary
       run: |
-        go build -o ../../node-pilot ./cmd/server/main.go
+        go build -o $GITHUB_WORKSPACE/node-pilot ./cmd/server/main.go
         echo "构建完成，文件保存在项目根目录:"
-        ls -la ../../node-pilot || true
+        ls -lh $GITHUB_WORKSPACE/node-pilot
         
     - name: Upload build artifact
       uses: actions/upload-artifact@v4

@@ -66,4 +66,9 @@ jobs:
         go build -o ../../node-pilot ./cmd/server/main.go
         echo "构建完成，文件保存在项目根目录:"
         ls -la ../../node-pilot || true
-    
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: node-pilot-linux-binary  # 产物的名称
+        path: node-pilot         # 要上传的文件路径（在工作区根目录下）

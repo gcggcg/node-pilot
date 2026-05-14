@@ -1,5 +1,7 @@
 {
   "wait": [],
-  "running": "01-file-upload-status-reset.md",
-  "succeed": []
+  "running": "",
+  "succeed": [
+    "01-file-upload-status-reset.md"
+  ]
 }
